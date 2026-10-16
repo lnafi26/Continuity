@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
@@ -54,13 +55,60 @@ class Config:
     token_encryption_key: str
     database_url: str
     default_test_user_id: str
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
+    pipeline_enabled: bool = False
     host: str = "localhost"
     port: int = 8765
     missing: list[str] = field(default_factory=list)
 
     @property
     def is_complete(self) -> bool:
+        """Legacy Google integration completeness (kept for verification CLI)."""
         return not self.missing
+
+    @property
+    def auth_missing(self) -> list[str]:
+        """Core auth requires only the project URL and browser-safe API key."""
+        missing = []
+        try:
+            parsed = urlsplit(self.supabase_url)
+        except ValueError:
+            return ["SUPABASE_URL"]
+        if (
+            parsed.scheme != "https" or not parsed.hostname
+            or parsed.username or parsed.password
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment
+            or "PROJECT_REFERENCE" in self.supabase_url
+        ):
+            missing.append("SUPABASE_URL")
+        if (
+            not self.supabase_publishable_key.startswith("sb_publishable_")
+            or "REPLACE_ME" in self.supabase_publishable_key
+        ):
+            missing.append("SUPABASE_PUBLISHABLE_KEY")
+        return missing
+
+    @property
+    def auth_ready(self) -> bool:
+        return not self.auth_missing
+
+    @property
+    def database_ready(self) -> bool:
+        """Only means a DB connection string was supplied, not probed."""
+        return bool(self.database_url) and not any(
+            marker in self.database_url
+            for marker in ("REPLACE_ME", "PROJECT_REFERENCE")
+        )
+
+    @property
+    def oauth_ready(self) -> bool:
+        return self.auth_ready and self.is_complete
+
+    @property
+    def pipeline_ready(self) -> bool:
+        """The inherited Claude pipeline stays opt-in until decoupled."""
+        return self.oauth_ready and self.pipeline_enabled
 
     def require_complete(self) -> None:
         if self.missing:
@@ -116,6 +164,8 @@ def load_config() -> Config:
         "TOKEN_ENCRYPTION_KEY": read("TOKEN_ENCRYPTION_KEY"),
         "SUPABASE_DATABASE_URL": read("SUPABASE_DATABASE_URL"),
         "DEFAULT_TEST_USER_ID": read("DEFAULT_TEST_USER_ID"),
+        "SUPABASE_URL": read("SUPABASE_URL"),
+        "SUPABASE_PUBLISHABLE_KEY": read("SUPABASE_PUBLISHABLE_KEY"),
     }
 
     missing = [
@@ -123,8 +173,9 @@ def load_config() -> Config:
         for name, value in values.items()
         # DEFAULT_TEST_USER_ID is optional at import time; it can also be passed
         # per-request. Everything else is required to run the flow.
-        if name != "DEFAULT_TEST_USER_ID"
-        and (value in placeholders or value.endswith("REPLACE_ME"))
+        if name not in (
+            "DEFAULT_TEST_USER_ID", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"
+        ) and (value in placeholders or value.endswith("REPLACE_ME"))
     ]
 
     host = read("OAUTH_SERVER_HOST") or "localhost"
@@ -144,6 +195,9 @@ def load_config() -> Config:
         token_encryption_key=values["TOKEN_ENCRYPTION_KEY"],
         database_url=values["SUPABASE_DATABASE_URL"],
         default_test_user_id=values["DEFAULT_TEST_USER_ID"],
+        supabase_url=values["SUPABASE_URL"],
+        supabase_publishable_key=values["SUPABASE_PUBLISHABLE_KEY"],
+        pipeline_enabled=read("CONTINUITY_ENABLE_LEGACY_PIPELINE").lower() == "true",
         host=host,
         port=port,
         missing=missing,

@@ -7,5 +7,5 @@ window.SUPABASE_CONFIG = {
   // Quick-tunnel URLs are ephemeral -- this must be updated (and redeployed)
   // every time `cloudflared tunnel --url http://localhost:8765` restarts,
   // unless/until it's swapped for a named/persistent tunnel.
-  oauthBaseUrl: "http://localhost:8765",
+  oauthBaseUrl: "http://localhost:8766",
 };
