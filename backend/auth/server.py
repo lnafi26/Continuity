@@ -18,7 +18,6 @@ stays in this process, and tokens are encrypted into the source_secrets table.
 from __future__ import annotations
 
 import html
-import os
 import secrets
 import subprocess
 import sys
@@ -127,8 +126,8 @@ def _authenticated_user() -> str:
     """Return only the ID verified by Supabase Auth, never a client-provided ID."""
     return verify_access_token(
         request.headers.get("Authorization"),
-        supabase_url=os.getenv("SUPABASE_URL", ""),
-        publishable_key=os.getenv("SUPABASE_PUBLISHABLE_KEY", ""),
+        supabase_url=config.supabase_url,
+        publishable_key=config.supabase_publishable_key,
     )
 
 
@@ -158,22 +157,27 @@ def _page(title: str, body: str, status: int = 200):
 
 @app.get("/health")
 def health():
-    """Readiness probe -- reports what is configured without printing secrets."""
-    default_set = bool(config.default_test_user_id) and (
-        config.default_test_user_id != "00000000-0000-0000-0000-000000000000"
-    )
+    """Core service readiness. Does not require optional Google or Claude."""
     lines = [
-        f"config_complete: {config.is_complete}",
-        f"redirect_uri: {config.redirect_uri}",
-        f"default_test_user_id_set: {default_set}",
+        f"auth_ready: {config.auth_ready}",
+        f"database_configured: {config.database_ready}",
+        f"google_integration_ready: {config.oauth_ready}",
+        f"legacy_pipeline_enabled: {config.pipeline_enabled}",
     ]
-    if config.missing:
-        lines.append("missing: " + ", ".join(config.missing))
+    if config.auth_missing:
+        lines.append("missing_core: " + ", ".join(config.auth_missing))
     return (
         "\n".join(lines),
-        (200 if config.is_complete else 503),
+        200 if config.auth_ready else 503,
         {"Content-Type": "text/plain"},
     )
+
+
+@app.get("/auth/session")
+def auth_session():
+    """Safe read-only endpoint for verifying a live Supabase bearer token."""
+    user_id = _authenticated_user()
+    return jsonify(ok=True, user_id=user_id)
 
 
 @app.get("/")
@@ -189,7 +193,7 @@ def index():
 @app.post("/auth/google/start")
 def auth_start():
     user_id = _authenticated_user()
-    if not config.is_complete:
+    if not config.oauth_ready:
         return jsonify(ok=False, error="Server not configured."), 503
 
     payload = request.get_json(silent=True) or {}
@@ -352,8 +356,8 @@ def auth_callback():
 @app.get("/connections")
 def connections():
     user_id = _authenticated_user()
-    if not config.is_complete:
-        return _page("Setup needed", "<p class='err'>Server not configured.</p>", 503)
+    if not config.database_ready:
+        return jsonify(ok=False, error="Database connection not configured."), 503
 
     rows = connections_repo.list_connections(config.database_url, user_id)
     if not rows:
@@ -388,8 +392,8 @@ def pipeline_run():
     if request.method == "OPTIONS":
         return "", 204
     user_id = _authenticated_user()
-    if not config.is_complete:
-        return jsonify(ok=False, error="Server not configured.", steps=[]), 503
+    if not config.pipeline_ready:
+        return jsonify(ok=False, error="Legacy pipeline is disabled or not configured.", steps=[]), 503
 
     steps = []
     for name, argv in PIPELINE_STEPS:
@@ -415,15 +419,15 @@ def pipeline_run():
 
 
 def main() -> None:
-    if not config.is_complete:
-        print(
-            "WARNING: configuration incomplete. Missing: "
-            + ", ".join(config.missing)
-        )
-        print(
-            f"Fill them in {Path(__file__).resolve().parent.parent / '.env'} "
-            "then restart. Serving a setup page in the meantime.\n"
-        )
+    if not config.auth_ready:
+        print("WARNING: core authentication is not configured. Missing: "
+              + ", ".join(config.auth_missing))
+    else:
+        print("Core Supabase authentication configured.")
+    if not config.oauth_ready:
+        print("Google OAuth is optional and currently unavailable.")
+    if not config.pipeline_ready:
+        print("Legacy processing pipeline is disabled (safe default).")
     print(f"Stage 0 OAuth server on http://{config.host}:{config.port}")
     print(f"Redirect URI (must be registered in Google): {config.redirect_uri}")
     app.run(host=config.host, port=config.port, debug=False)
