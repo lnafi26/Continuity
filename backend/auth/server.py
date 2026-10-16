@@ -18,11 +18,13 @@ stays in this process, and tokens are encrypted into the source_secrets table.
 from __future__ import annotations
 
 import html
+import os
 import secrets
 import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # Allow running directly (python3 backend/auth/server.py): make sibling modules
 # importable regardless of the caller's working directory.
@@ -35,6 +37,11 @@ from google_auth_oauthlib.flow import Flow
 import connections_repo
 from config import USERINFO_ENDPOINT, VALID_PROVIDERS, load_config
 from token_store import TokenStore
+from supabase_auth import (
+    AuthenticationError,
+    AuthenticationUnavailable,
+    verify_access_token,
+)
 
 config = load_config()
 app = Flask(__name__)
@@ -66,7 +73,6 @@ PIPELINE_STEPS: list[tuple[str, list[str]]] = [
 _ALLOWED_ORIGINS = {
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://ai-project-management-tool.huairuxu.workers.dev",
 }
 
 
@@ -76,7 +82,8 @@ def _add_cors_headers(resp):
     if origin in _ALLOWED_ORIGINS:
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        resp.headers["Vary"] = "Origin"
     return resp
 
 # Short-lived CSRF/state store: maps the opaque `state` value we send to Google
@@ -93,14 +100,37 @@ def _clean_pending() -> None:
 
 
 def _safe_return_to(url: str | None) -> str | None:
-    """Allow redirecting back only to a trusted app origin (open-redirect guard)."""
-    if not url:
+    """Accept only a fully parsed, exactly trusted frontend origin."""
+    if not url or not isinstance(url, str):
         return None
-    if url.startswith("http://localhost:") or url.startswith("http://127.0.0.1:"):
-        return url
-    if any(url.startswith(origin) for origin in _ALLOWED_ORIGINS if origin.startswith("https://")):
-        return url
-    return None
+    try:
+        parsed = urlsplit(url)
+        if parsed.username or parsed.password or not parsed.netloc:
+            return None
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        return url if origin in _ALLOWED_ORIGINS else None
+    except ValueError:
+        return None
+
+
+@app.errorhandler(AuthenticationError)
+def _auth_invalid(exc: AuthenticationError):
+    return jsonify(ok=False, error=str(exc)), 401
+
+
+@app.errorhandler(AuthenticationUnavailable)
+def _auth_unavailable(exc: AuthenticationUnavailable):
+    return jsonify(ok=False, error=str(exc)), 503
+
+
+def _authenticated_user() -> str:
+    """Return only the ID verified by Supabase Auth, never a client-provided ID."""
+    return verify_access_token(
+        request.headers.get("Authorization"),
+        supabase_url=os.getenv("SUPABASE_URL", ""),
+        publishable_key=os.getenv("SUPABASE_PUBLISHABLE_KEY", ""),
+    )
+
 
 
 def _build_flow(scopes: list[str], state: str | None = None) -> Flow:
@@ -148,40 +178,26 @@ def health():
 
 @app.get("/")
 def index():
-    if not config.is_complete:
-        return _page(
-            "Setup needed",
-            "<h1>Stage 0 - Connect &amp; Authorize</h1>"
-            "<p class='err'>Configuration is incomplete. Missing: <code>"
-            + html.escape(", ".join(config.missing))
-            + "</code></p><p>Fill these in <code>backend/.env</code> "
-            "(see <code>backend/.env.example</code>), then restart the server.</p>",
-            503,
-        )
-    user_hint = (
-        html.escape(config.default_test_user_id)
-        if config.default_test_user_id
-        else "(none - append ?user_id=... to the links below)"
-    )
     return _page(
-        "Connect your accounts",
-        "<h1>Stage 0 - Connect &amp; Authorize</h1>"
-        f"<p>Connecting for user: <code>{user_hint}</code></p>"
-        "<p>"
-        "<a class='btn' href='/auth/google/start?providers=gmail'>Connect Gmail</a>"
-        "<a class='btn' href='/auth/google/start?providers=google_calendar'>Connect Calendar</a>"
-        "<a class='btn' href='/auth/google/start?providers=gmail,google_calendar'>Connect both</a>"
-        "</p>"
-        "<p><a href='/connections'>View current connections</a></p>",
+        "Continuity backend",
+        "<h1>Continuity backend</h1>"
+        "<p>Use the authenticated Continuity frontend to connect services.</p>",
     )
 
 
-@app.get("/auth/google/start")
-def auth_start():
-    if not config.is_complete:
-        return _page("Setup needed", "<p class='err'>Server not configured.</p>", 503)
 
-    raw = request.args.get("providers", "gmail")
+@app.post("/auth/google/start")
+def auth_start():
+    user_id = _authenticated_user()
+    if not config.is_complete:
+        return jsonify(ok=False, error="Server not configured."), 503
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify(ok=False, error="Expected JSON object."), 400
+    raw = payload.get("providers", "gmail")
+    if not isinstance(raw, str):
+        return jsonify(ok=False, error="providers must be a string."), 400
     providers = [p.strip() for p in raw.split(",") if p.strip()]
     invalid = [p for p in providers if p not in VALID_PROVIDERS]
     if not providers or invalid:
@@ -193,15 +209,7 @@ def auth_start():
             400,
         )
 
-    user_id = request.args.get("user_id", "").strip() or config.default_test_user_id
-    if not user_id or user_id == "00000000-0000-0000-0000-000000000000":
-        return _page(
-            "Missing user",
-            "<p class='err'>No user to attach this connection to. Set "
-            "<code>DEFAULT_TEST_USER_ID</code> in <code>backend/.env</code> or "
-            "append <code>?user_id=&lt;supabase-user-uuid&gt;</code>.</p>",
-            400,
-        )
+
 
     scopes = config.scopes_for(providers)
     state = secrets.token_urlsafe(24)
@@ -219,10 +227,10 @@ def auth_start():
         "scopes": scopes,
         # PKCE: the verifier generated here must be replayed at token exchange.
         "code_verifier": flow.code_verifier,
-        "return_to": _safe_return_to(request.args.get("return_to")),
+        "return_to": _safe_return_to(payload.get("return_to")),
         "created_at": time.time(),
     }
-    return redirect(auth_url)
+    return jsonify(ok=True, authorization_url=auth_url)
 
 
 @app.get("/auth/google/callback")
@@ -343,13 +351,10 @@ def auth_callback():
 
 @app.get("/connections")
 def connections():
+    user_id = _authenticated_user()
     if not config.is_complete:
         return _page("Setup needed", "<p class='err'>Server not configured.</p>", 503)
-    user_id = (
-        request.args.get("user_id", "").strip()
-        or config.default_test_user_id
-        or None
-    )
+
     rows = connections_repo.list_connections(config.database_url, user_id)
     if not rows:
         body = "<p>No connections yet. <a href='/'>Connect an account.</a></p>"
@@ -382,13 +387,9 @@ def pipeline_run():
     """
     if request.method == "OPTIONS":
         return "", 204
+    user_id = _authenticated_user()
     if not config.is_complete:
         return jsonify(ok=False, error="Server not configured.", steps=[]), 503
-
-    payload = request.get_json(silent=True) or {}
-    user_id = (request.args.get("user_id") or payload.get("user_id") or "").strip()
-    if not user_id:
-        return jsonify(ok=False, error="user_id required.", steps=[]), 400
 
     steps = []
     for name, argv in PIPELINE_STEPS:

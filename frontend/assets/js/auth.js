@@ -804,15 +804,27 @@
       throw new Error("Set oauthBaseUrl in supabase-config.js to the Stage 0 OAuth server.");
     }
 
-    // Hand off to the local Stage 0 OAuth server (backend/auth/server.py). It
-    // runs Google consent, stores the encrypted token, writes the connection
-    // row, then redirects back here. A full-page redirect avoids CORS.
-    const startUrl = new URL("/auth/google/start", oauthBaseUrl);
-    startUrl.searchParams.set("providers", provider);
-    startUrl.searchParams.set("user_id", session.user.id);
-    startUrl.searchParams.set("return_to", `${window.location.origin}/`);
-    window.location.assign(startUrl.toString());
+    // Authenticated POST binds Google OAuth state to the verified Supabase user.
+    // Never put bearer tokens or user IDs into OAuth initiation URLs.
+    const response = await fetch(new URL("/auth/google/start", oauthBaseUrl), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        providers: provider,
+        return_to: `${window.location.origin}/`,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.authorization_url) {
+      throw new Error(result.error || "Unable to begin Google authorization.");
+    }
+    window.location.assign(result.authorization_url);
   };
+
+
 
   // "Scan for updates" -- runs the real Stages 1-7 pipeline (sync through
   // digest summarize) for the signed-in user on the same local Stage 0
@@ -831,8 +843,11 @@
 
     const res = await fetch(new URL("/pipeline/run", oauthBaseUrl), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: session.user.id }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({}),
     });
     const result = await res.json().catch(() => ({ ok: false, steps: [], error: "Bad response from pipeline server." }));
 
