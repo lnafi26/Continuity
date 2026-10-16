@@ -1,7 +1,7 @@
 """Stage 7 orchestrator: precompute the catch-up digest's per-project summary.
 
-For each project with events newer than its last summary (or none yet), asks
-Haiku 4.5 for one natural sentence covering its recent activity and writes it
+For each project with events newer than its last summary (or none yet),
+uses the Continuity model router for a concise sentence and writes it
 to projects.catchup_summary. Run this after Stage 6 extraction so the digest
 has a fresh sentence ready -- the dashboard only ever reads it, never
 generates it live.
@@ -19,7 +19,6 @@ Commands:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -29,7 +28,11 @@ sys.path.insert(0, str(HERE.parent / "auth"))
 
 import config as config_mod
 import summarize_repo
-import summarizer
+
+REPO_ROOT = HERE.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from backend.intelligence import ModelRouter
 
 
 def _resolve_user_id(cfg, explicit: str | None) -> str | None:
@@ -37,14 +40,6 @@ def _resolve_user_id(cfg, explicit: str | None) -> str | None:
     if not user_id or user_id == "00000000-0000-0000-0000-000000000000":
         return None
     return user_id
-
-
-def _gate_config():
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    if not api_key or api_key.endswith("REPLACE_ME"):
-        api_key = ""
-    model = os.getenv("ANTHROPIC_SUMMARY_MODEL", summarizer.DEFAULT_SUMMARY_MODEL).strip()
-    return api_key, model or summarizer.DEFAULT_SUMMARY_MODEL
 
 
 def cmd_run(args, cfg) -> int:
@@ -57,16 +52,15 @@ def cmd_run(args, cfg) -> int:
         print("Nothing to summarize. All projects are up to date.")
         return 0
 
-    api_key, model = _gate_config()
-    if api_key:
-        print(f"Summarizing {len(targets)} project(s) with {model} ...")
-    else:
-        print(f"No ANTHROPIC_API_KEY - using deterministic summaries for "
-              f"{len(targets)} project(s).")
+    router = ModelRouter()
+    print(f"Summarizing {len(targets)} project(s) via offline model router "
+          "(no external inference calls).")
 
     for t in targets:
         events = summarize_repo.fetch_recent_events(cfg.database_url, t.id)
-        sentence = summarizer.summarize(t.name, events, api_key=api_key, model=model)
+        sentence = router.run("digest_summary", {
+            "project_name": t.name, "events": events,
+        }).data["summary"]
         summarize_repo.update_summary(cfg.database_url, t.id, sentence)
         print(f"  [{t.name}] {sentence}")
 
@@ -83,12 +77,14 @@ def cmd_preview(args, cfg) -> int:
     if not targets:
         print("Nothing pending to preview.")
         return 0
-    api_key, model = _gate_config()
+    router = ModelRouter()
     print(f"Dry-run of {len(targets)} project(s) "
-          f"({'model ' + model if api_key else 'deterministic fallback'}); no writes:\n")
+          "(offline deterministic summary); no writes or external inference calls:\n")
     for t in targets:
         events = summarize_repo.fetch_recent_events(cfg.database_url, t.id)
-        sentence = summarizer.summarize(t.name, events, api_key=api_key, model=model)
+        sentence = router.run("digest_summary", {
+            "project_name": t.name, "events": events,
+        }).data["summary"]
         print(f"[{t.name}] ({len(events)} recent event(s))\n  {sentence}\n")
     print("(preview only - no rows were modified)")
     return 0

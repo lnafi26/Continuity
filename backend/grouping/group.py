@@ -1,7 +1,7 @@
 """Stage 5 orchestrator: Group & Link to Projects.
 
-Builds project clusters from the Stage 4 relationship graph, asks Claude
-(Sonnet 5) to name + summarize each cluster, creates AI projects, and links
+Builds project clusters from the Stage 4 relationship graph, uses the
+Continuity model router to name + summarize them, creates AI projects, and links
 their items via project_source_links (match_method='ai', review_status='pending').
 
 `run` is incremental by default: items already linked to a project (any
@@ -32,7 +32,6 @@ Commands:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -43,7 +42,12 @@ sys.path.insert(0, str(HERE.parent / "auth"))
 import clustering
 import config as config_mod
 import grouping_repo as repo
-import llm_namer
+
+# Standalone stage scripts don't automatically have the repository root on sys.path.
+REPO_ROOT = HERE.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from backend.intelligence import ModelRouter
 
 # A small palette for AI-created project cards.
 _PALETTE = [
@@ -192,14 +196,9 @@ def cmd_run(args, cfg) -> int:
             print(f"No clusters of size >= {args.min_size} to group.")
         return 0
 
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    model = os.getenv("ANTHROPIC_MODEL", llm_namer.DEFAULT_MODEL).strip() or llm_namer.DEFAULT_MODEL
-    if api_key and not api_key.endswith("REPLACE_ME"):
-        print(f"Naming {len(clusters)} cluster(s) with {model} ...")
-    else:
-        api_key = ""
-        print(f"No ANTHROPIC_API_KEY set - using offline keyword names for "
-              f"{len(clusters)} cluster(s).")
+    router = ModelRouter()
+    print(f"Naming {len(clusters)} cluster(s) via offline model router "
+          "(no external inference calls).")
 
     created = 0
     for idx, member_ids in enumerate(clusters):
@@ -213,7 +212,8 @@ def cmd_run(args, cfg) -> int:
             }
             for m in members
         ]
-        named = llm_namer.name_project(item_dicts, api_key=api_key, model=model)
+        naming_result = router.run("project_naming", {"items": item_dicts})
+        named = naming_result.data
         color, soft = _PALETTE[idx % len(_PALETTE)]
         project_id = repo.create_project(
             cfg.database_url, user_id,
@@ -221,11 +221,12 @@ def cmd_run(args, cfg) -> int:
             color=color, soft_color=soft, members=_member_initials(members),
             category=named.get("category", "project"),
         )
-        # Link confidence blends structural cohesion with the LLM's coherence.
+        # Link confidence blends structural cohesion with naming coherence.
         confidence = round(min(1.0, 0.5 * cohesion + 0.5 * named["coherence"]), 4)
         explanation = (
             f"Grouped by semantic + deterministic similarity "
-            f"(cohesion {cohesion:.2f}, model coherence {named['coherence']:.2f})."
+            f"(cohesion {cohesion:.2f}, naming coherence {named['coherence']:.2f}, "
+            f"provider {naming_result.provider})."
         )
         for m in members:
             repo.link_item(

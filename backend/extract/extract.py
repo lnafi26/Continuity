@@ -1,7 +1,7 @@
 """Stage 6 orchestrator: Extract Events & Actions.
 
-For each item linked to a project but not yet extracted, asks Haiku 4.5 for
-timeline events + action items and writes them to project_events /
+For each item linked to a project but not yet extracted, uses the
+Continuity model router to derive timeline events and actions for project_events /
 project_actions (AI rows, user_edited=false). Marks the item extracted.
 
   preview  dry-run: show what would be extracted for a few items (LLM calls, no writes)
@@ -17,7 +17,6 @@ Commands:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -27,7 +26,11 @@ sys.path.insert(0, str(HERE.parent / "auth"))
 
 import config as config_mod
 import extract_repo
-import extractor
+
+REPO_ROOT = HERE.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from backend.intelligence import ModelRouter
 
 
 def _resolve_user_id(cfg, explicit: str | None) -> str | None:
@@ -35,14 +38,6 @@ def _resolve_user_id(cfg, explicit: str | None) -> str | None:
     if not user_id or user_id == "00000000-0000-0000-0000-000000000000":
         return None
     return user_id
-
-
-def _gate_config():
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    if not api_key or api_key.endswith("REPLACE_ME"):
-        api_key = ""
-    model = os.getenv("ANTHROPIC_EXTRACT_MODEL", extractor.DEFAULT_EXTRACT_MODEL).strip()
-    return api_key, model or extractor.DEFAULT_EXTRACT_MODEL
 
 
 def _item_dict(it) -> dict:
@@ -69,16 +64,13 @@ def cmd_run(args, cfg) -> int:
         print("Nothing to extract. Queue is empty.")
         return 0
 
-    api_key, model = _gate_config()
-    if api_key:
-        print(f"Extracting {len(items)} item(s) with {model} ...")
-    else:
-        print(f"No ANTHROPIC_API_KEY - using metadata-only extraction for "
-              f"{len(items)} item(s).")
+    router = ModelRouter()
+    print(f"Extracting {len(items)} item(s) via offline model router "
+          "(metadata-derived events; no external inference calls).")
 
     ev_total = ac_total = 0
     for it in items:
-        result = extractor.extract(_item_dict(it), api_key=api_key, model=model)
+        result = router.run("event_extraction", {"item": _item_dict(it)}).data
         for ev in result["events"]:
             extract_repo.insert_event(cfg.database_url, user_id, it.project_id, it.id, ev, it.color)
         for ac in result["actions"]:
@@ -101,11 +93,11 @@ def cmd_preview(args, cfg) -> int:
     if not items:
         print("Nothing pending to preview.")
         return 0
-    api_key, model = _gate_config()
+    router = ModelRouter()
     print(f"Dry-run of {len(items)} item(s) "
-          f"({'model ' + model if api_key else 'metadata fallback'}); no writes:\n")
+          "(offline metadata fallback); no writes or external inference calls:\n")
     for it in items:
-        result = extractor.extract(_item_dict(it), api_key=api_key, model=model)
+        result = router.run("event_extraction", {"item": _item_dict(it)}).data
         print(f"[{it.source_type}] {(it.title or '(untitled)')[:70]}")
         for ev in result["events"]:
             rr = ev.get("requires_response")
