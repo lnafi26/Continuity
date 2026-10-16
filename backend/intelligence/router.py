@@ -129,7 +129,35 @@ def _normalize_result(task: str, value: Any, payload: dict[str, Any]) -> dict[st
         # output. The offline fallback is already normalized by extractor.
         if not events:
             raise ValueError("An event is required for a source item.")
-        return extractor._normalize(value, payload["item"])
+        normalized = extractor._normalize(value, payload["item"])
+        # F1B: preserve *optional* verbatim evidence quotations after the legacy
+        # event/action normalizer removes fields it does not recognize. Quotes
+        # must stay unmodified: stripping or clipping would forge source spans.
+        # This transports a claim of evidence; it does NOT verify that claim.
+        if not isinstance(normalized, dict):
+            raise ValueError("Invalid normalized extraction.")
+        for key in ("events", "actions"):
+            candidates = value[key][:4]
+            if key == "actions":
+                # The normalizer discards actions with empty titles. Align with
+                # its rule, rather than attaching an earlier action's quote to
+                # a different action after filtering.
+                candidates = [x for x in candidates if str(x.get("title", "")).strip()]
+            output = normalized.get(key)
+            if not isinstance(output, list) or len(output) != len(candidates):
+                continue  # Ambiguous mapping: do not attach evidence.
+            for raw, row in zip(candidates, output):
+                if not isinstance(row, dict):
+                    continue
+                expected_title = (str(raw.get("title", "")).strip() or "(untitled)")[:200]
+                if row.get("title") != expected_title:
+                    # Length alone does not establish correspondence if a
+                    # different normalizer reorders the candidates.
+                    continue
+                quote = raw.get("evidence_quote")
+                if isinstance(quote, str) and 14 <= len(quote) <= 500 and len(quote.split()) >= 3:
+                    row["evidence_quote"] = quote
+        return normalized
     if task == "digest_summary":
         summary = value.get("summary")
         if not isinstance(summary, str) or not summary.strip():
