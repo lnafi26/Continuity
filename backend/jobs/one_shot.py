@@ -6,6 +6,8 @@ Restricted to the disposable Docker PostgreSQL database.
 
 from __future__ import annotations
 
+import psycopg
+
 from backend.extract.extract_repo import ExtractionWriteConflict
 from backend.intelligence.router import InferenceUnavailableError
 from backend.jobs.extraction_worker import (
@@ -19,6 +21,15 @@ from backend.jobs.ledger import (
 )
 
 
+class WorkerStorageUnavailableError(RuntimeError):
+    """Safe failure when worker job storage cannot be accessed."""
+
+    def __init__(self):
+        super().__init__(
+            "Worker job storage is unavailable; processing was not confirmed."
+        )
+
+
 def run_one_local(database_url: str, *, user_id: str) -> dict:
     """Claim and process at most one eligible synthetic extraction job.
 
@@ -28,11 +39,14 @@ def run_one_local(database_url: str, *, user_id: str) -> dict:
     # Validate destination BEFORE claiming or modifying any jobs.
     require_local_test_database(database_url)
 
-    claim = claim_next(
-        database_url,
-        user_id=user_id,
-        lease_seconds=180,
-    )
+    try:
+        claim = claim_next(
+            database_url,
+            user_id=user_id,
+            lease_seconds=180,
+        )
+    except psycopg.Error:
+        raise WorkerStorageUnavailableError() from None
 
     if claim is None:
         return {"status": "no_eligible_job", "job_id": None}
@@ -70,6 +84,8 @@ def run_one_local(database_url: str, *, user_id: str) -> dict:
                 "status": "lease_lost",
                 "job_id": claim.job_id,
             }
+        except psycopg.Error:
+            raise WorkerStorageUnavailableError() from None
 
         return {
             "status": status,

@@ -5,12 +5,13 @@ No live services, PostgreSQL writes, or inference calls.
 """
 
 import unittest
+import psycopg
 from unittest.mock import patch
 
 from backend.extract.extract_repo import ExtractionWriteConflict
 from backend.intelligence.router import InferenceUnavailableError
 from backend.jobs.ledger import JobClaim, JobLeaseLostError
-from backend.jobs.one_shot import run_one_local
+from backend.jobs.one_shot import run_one_local, WorkerStorageUnavailableError
 
 
 DB = (
@@ -167,6 +168,45 @@ class OneShotWorkerTests(unittest.TestCase):
         self.assertEqual(result["status"], "lease_lost")
         self.assertEqual(result["job_id"], CLAIM.job_id)
         self.fail.assert_called_once()
+
+
+    def test_claim_database_failure_is_sanitized(self):
+        self.claim.side_effect = psycopg.OperationalError(
+            "SYNTHETIC_PRIVATE_CONNECTION_DETAIL"
+        )
+
+        with self.assertRaises(
+            WorkerStorageUnavailableError
+        ) as caught:
+            self.run_worker()
+
+        self.assertNotIn(
+            "SYNTHETIC_PRIVATE_CONNECTION_DETAIL",
+            str(caught.exception),
+        )
+        self.process.assert_not_called()
+        self.fail.assert_not_called()
+
+    def test_failure_reporting_database_error_is_sanitized(self):
+        self.process.side_effect = RuntimeError(
+            "Synthetic extraction failure"
+        )
+        self.fail.side_effect = psycopg.OperationalError(
+            "SYNTHETIC_PRIVATE_STORAGE_DETAIL"
+        )
+
+        with self.assertRaises(
+            WorkerStorageUnavailableError
+        ) as caught:
+            self.run_worker()
+
+        self.assertNotIn(
+            "SYNTHETIC_PRIVATE_STORAGE_DETAIL",
+            str(caught.exception),
+        )
+        self.fail.assert_called_once_with(
+            DB, CLAIM, error_code="processing_failed"
+        )
 
 
 if __name__ == "__main__":
