@@ -12,6 +12,10 @@ from dataclasses import dataclass, field
 
 import psycopg
 
+from backend.jobs.ledger import (
+    JobClaim, JobLeaseLostError, STAGE, _claim_ids, _uuid,
+)
+
 
 @dataclass
 class ExtractItem:
@@ -124,6 +128,7 @@ def write_extraction_atomic(
     events: list[dict],
     actions: list[dict],
     color: str,
+    job_claim: JobClaim | None = None,
 ) -> bool:
     """Commit one source's generated rows AND processed marker atomically.
 
@@ -139,8 +144,35 @@ def write_extraction_atomic(
         raise ValueError("Events and actions must be lists.")
     if any(not isinstance(x, dict) for x in events + actions):
         raise ValueError("Events and actions must contain objects.")
+    lease = None
+    if job_claim is not None:
+        job_id, owner, token = _claim_ids(job_claim)
+        source = _uuid(job_claim.source_item_id, "source_item_id")
+        if (owner != _uuid(user_id, "user_id")
+                or source != _uuid(source_item_id, "source_item_id")
+                or type(job_claim.attempt) is not int or job_claim.attempt < 1):
+            raise JobLeaseLostError()
+        lease = (job_id, owner, source, token, job_claim.attempt)
     with psycopg.connect(database_url) as connection:
         with connection.cursor() as cursor:
+            if lease is not None:
+                job_id, owner, source, token, attempt = lease
+                # Lock the job BEFORE locking its source, so reclaims and
+                # acknowledgements serialize with extraction output.
+                cursor.execute(
+                    """
+                    select j.id from public.processing_jobs j
+                    where j.id = %s and j.user_id = %s
+                      and j.source_item_id = %s and j.stage = %s
+                      and j.status = 'running' and j.lease_token = %s
+                      and j.attempts = %s
+                      and j.lease_until > clock_timestamp()
+                    for update of j
+                    """,
+                    (job_id, owner, source, STAGE, token, attempt),
+                )
+                if cursor.fetchone() is None:
+                    raise JobLeaseLostError()
             cursor.execute(
                 """
                 select si.extracted_at
@@ -156,6 +188,9 @@ def write_extraction_atomic(
             if source_row is None:
                 raise ValueError("No authorized source-project link exists.")
             if source_row[0] is not None:
+                if lease is not None:
+                    # Do not acknowledge a job for someone else's work.
+                    raise JobLeaseLostError()
                 return False
 
             cursor.execute(
@@ -234,7 +269,51 @@ def write_extraction_atomic(
             )
             if cursor.rowcount != 1:
                 raise RuntimeError("Source completion marker was not updated.")
+            if lease is not None:
+                # Success acknowledgement and ALL extracted rows share
+                # this transaction. A lost lease rolls everything back.
+                cursor.execute(
+                    """
+                    update public.processing_jobs
+                    set status = 'succeeded', lease_token = null,
+                        lease_until = null, retry_at = null,
+                        last_error_code = null, finished_at = now(),
+                        updated_at = now()
+                    where id = %s and user_id = %s
+                      and source_item_id = %s and stage = %s
+                      and status = 'running' and lease_token = %s
+                      and attempts = %s
+                      and lease_until > clock_timestamp()
+                    returning id
+                    """,
+                    (job_id, owner, source, STAGE, token, attempt),
+                )
+                if cursor.fetchone() is None:
+                    raise JobLeaseLostError()
     return True
+
+
+def write_extraction_with_claim_atomic(
+    database_url: str,
+    claim: JobClaim,
+    project_id: str,
+    *,
+    events: list[dict],
+    actions: list[dict],
+    color: str,
+) -> bool:
+    """Explicit R0.3C entrypoint; no job claim means no write.
+
+    This API is not connected to a worker or to the legacy stage.
+    It requires the currently leased source owner, validates and locks
+    that lease, and commits the job acknowledgement with source output.
+    """
+    if not isinstance(claim, JobClaim):
+        raise ValueError("A JobClaim is required for fenced extraction.")
+    return write_extraction_atomic(
+        database_url, claim.user_id, project_id, claim.source_item_id,
+        events=events, actions=actions, color=color, job_claim=claim,
+    )
 
 
 def reset(database_url: str, user_id: str) -> dict:
