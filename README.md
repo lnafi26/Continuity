@@ -1,102 +1,125 @@
-# ThreadLinePMA
+# Continuity
 
-AI-assisted project memory that organizes connected Gmail messages, Google Calendar events, and uploaded files into projects, timelines, and actions.
+**Evidence-backed, continuously updated project context for people and AI assistants.**
 
-## Project structure
+Continuity is an in-development platform for organizing conversations, source documents, development activity, decisions, open actions, and changes over time into distinct, interconnected **continuities**. It is intended to help both people and authorized AI agents understand what happened, what is happening now, what remains uncertain, and what needs attention next.
+
+Continuity is **not production-ready**. Much of the application is still an inherited prototype being refactored and secured. The repository began as a fork of ThreadLinePMA; older `docs/` and pipeline modules retain historical context and must not be mistaken for the current product specification.
+
+## Current state (October 2026)
+
+| Area | Status |
+| --- | --- |
+| Supabase schema and owner-scoped row-level security | Initial migration written; development Supabase project initialized |
+| Supabase account registration, login, and backend session verification | Implemented and locally tested |
+| Local Flask backend with optional integrations decoupled | Implemented; core authentication can start without Google, database access, or model-provider credentials |
+| Provider-independent `ModelRouter` | Implemented; offline-only by default |
+| Hosted Hugging Face inference gateway | Private **staging** Space; tested using fictional data and explicit approval |
+| Project naming, event/action extraction, and digest summarization | Synthetic hosted smoke tests completed; extraction still requires review |
+| Source quotations and grounding-review helpers | Implemented; exact quotes may be anchored, but claims are **not automatically verified** |
+| Evidence-candidate snapshots | Under development; local work in progress, not deployed or integrated into ingestion |
+| Live ChatGPT or GitHub synchronization | Not yet implemented |
+| Production agent context API / Timeline Canvas | Planned, not implemented |
+
+The inherited `frontend/` contains placeholder project content. Do not interpret demonstration entries as actual user project data or as evidence that synchronization is operating.
+
+## Design and safety principles
+
+- **Active context, not just archives:** Capture current state, milestones, unresolved questions, blockers, and next actions alongside history.
+- **Source-grounded history:** Keep source identifiers, timestamps, quotations, and review flags; distinguish proposals, decisions, implementation, testing, and deployment.
+- **Human and agent access:** Plan read-only, authenticated, permission-scoped context retrieval first. Agent writes and background actions require separate authorization and audit controls.
+- **Graceful failure:** Preserve the ability to inspect existing information when individual providers, network calls, or ingestion jobs fail; isolate failures and report freshness.
+- **Privacy by default:** No automatic remote processing of real inboxes, client records, or conversations during the current staging phase. Fictional, manually approved test data only.
+- **No invented confirmation:** A matching quotation proves that text occurs in a source, not that the model's conclusion is true.
+
+## Repository layout
 
 ```text
-.
-├── frontend/                     Static website
-│   ├── index.html                Page structure
-│   ├── assets/
-│   │   ├── css/styles.css        Visual design and responsive layouts
-│   │   └── js/
-│   │       ├── dashboard.js      Dashboard rendering and interactions
-│   │       └── auth.js           Sign-in, registration, profiles, and sessions
-│   └── config/
-│       ├── supabase-config.example.js
-│       └── supabase-config.js    Browser-safe Supabase URL/key + OAuth server URL
-├── backend/                      Server-side and database administration
-│   ├── .env.example
-│   ├── .env                     Local secrets; ignored by Git
-│   ├── requirements.txt
-│   └── database/
-│       ├── supabase_connections.py
-│       └── supabase_queries.json
-├── docs/                         Planning and setup documentation
-└── README.md
+backend/
+  auth/            Flask API, Supabase authentication, optional Google OAuth
+  intelligence/    ModelRouter, offline/hosted adapters, source review
+  ingest/          Inherited Gmail/Calendar sync modules (not enabled)
+  normalize/       Inherited source normalization
+  dedupe/          Inherited work-only relevance filter; requires redesign
+  embed/           Inherited semantic grouping primitives
+  grouping/        Project grouping and naming
+  extract/         Event/action extraction
+  digest/          Project summaries
+  tests/           Automated no-network and mocked integration tests
+frontend/          Browser UI and Supabase login (includes placeholder data)
+supabase/migrations/  Versioned initial schema
+demo_data/         Synthetic fixtures; historical pipeline demonstrations
+docs/              Architecture, older stage guides, security/review notes
 ```
 
-## Responsibility boundaries
+## Local development
 
-- `frontend/assets/js/dashboard.js` controls only dashboard UI and display state.
-- `frontend/assets/js/auth.js` controls Supabase Auth and user profiles.
-- `backend/database/` contains privileged schema-management tools and SQL.
-- `backend/.env` contains the database URL and must never reach the browser.
-- `frontend/config/supabase-config.js` contains only the browser-safe project URL and publishable key.
+Requires Python 3, the packages in `backend/requirements.txt`, and a configured Supabase project if testing sign-in or authenticated API routes.
 
-## One-time setup
-
-1. **Install backend dependencies:**
-   ```bash
-   python3 -m pip install -r backend/requirements.txt
-   ```
-2. **Create a Supabase project and the schema.** See [docs/SUPABASE.md](docs/SUPABASE.md) for
-   creating the project, then apply the schema:
-   ```bash
-   python3 backend/database/supabase_connections.py --list
-   python3 backend/database/supabase_connections.py --title check_all_tables
-   ```
-3. **Fill in config** (both are gitignored except their `.example` counterparts):
-   - `backend/.env` — copy from `backend/.env.example`. Database URL, Google OAuth
-     client id/secret, token encryption key, `ANTHROPIC_API_KEY`.
-   - `frontend/config/supabase-config.js` — copy from `supabase-config.example.js`.
-     Supabase project URL + publishable key (safe for the browser), and
-     `oauthBaseUrl` (where the backend OAuth/pipeline server below is reachable).
-4. **Create a Google OAuth client** (Gmail + Calendar, read-only) and register it as
-   a test user. Full walkthrough: [docs/STAGE0_OAUTH.md](docs/STAGE0_OAUTH.md).
-
-## Start the app
-
-Two processes, each in its own terminal, from the repository root:
+From the repository root:
 
 ```bash
-# 1. Backend: OAuth (Connect apps) + pipeline runner (Scan for updates)
-python3 backend/auth/server.py
-
-# 2. Frontend: the static dashboard
-python3 -m http.server 8000 --directory frontend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
 ```
 
-Open `http://localhost:8000`, sign in, then **Connect apps** (first time only,
-Gmail and/or Calendar) and **Scan for updates** to pull in and process new
-messages/events. Scan for updates runs Stages 1-7 for you — sync, normalize,
-dedupe, embed, relate, group, and extract/summarize — instead of running each
-stage's CLI by hand. If you'd rather run (or debug) a stage individually, see
-each script's own `--help` under `backend/*/`, or
-[demo_data/README.md](demo_data/README.md) for the full manual sequence against
-the bundled synthetic dataset.
+Copy `backend/.env.example` to `backend/.env` and configure the **minimum auth settings**:
 
-## Demo the deployed site
+```text
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
+CONTINUITY_ENABLE_LEGACY_PIPELINE=false
+OAUTH_SERVER_PORT=8766
+```
 
-The frontend alone is deployed (Cloudflare) and reachable from anywhere — sign-in
-and browsing work there directly. **Connect apps / Scan for updates** additionally
-need the backend from "Start the app" above running on your own machine, exposed
-via a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
+A Supabase **publishable key** is designed for browser use; **database passwords, provider access tokens, OAuth client secrets, and service-role keys are not**. Keep secrets in ignored local environment files or an external secret manager, never in frontend JavaScript or Git history.
+
+The initial migration is stored at `supabase/migrations/20261016000000_initial_schema.sql`. The current development database had its initial schema applied manually; do **not** blindly re-run the migration against a populated database or assume migration-history tracking is reconciled.
+
+Start the services in separate terminals:
 
 ```bash
-python3 backend/auth/server.py        # same as local
-cloudflared tunnel --url http://localhost:8765
+# Backend — reads its port from backend/.env (8766 in the example)
+python backend/auth/server.py
+
+# Static frontend
+python -m http.server 8000 --directory frontend
 ```
 
-Take the printed `https://<random>.trycloudflare.com` URL, set it as
-`oauthBaseUrl` in `frontend/config/supabase-config.js`, then commit + push (this
-file *is* tracked in git — only its `.example` counterpart's placeholder values
-aren't real). Cloudflare redeploys on push. A quick tunnel's URL changes every
-time it restarts, so this step repeats each fresh session unless it's swapped
-for a named/persistent tunnel (requires owning a domain in your Cloudflare
-account).
+Open `http://localhost:8000`. Ensure `frontend/config/supabase-config.js` has the expected browser-safe project URL, publishable key, and `oauthBaseUrl` matching the local backend. Keep sensitive credentials out of this file.
 
-If your deployed site's origin ever changes, update `_ALLOWED_ORIGINS` in
-`backend/auth/server.py` to match — it's the CORS + OAuth-return-redirect
-allowlist, currently hardcoded to this project's deployed URL.
+**Important:** The inherited Google/Claude pipeline is disabled by default. Do not enable `CONTINUITY_ENABLE_LEGACY_PIPELINE`; the old work-only filtering, consent, error-recovery, and persistence paths require redesign before they can process real user data safely. The existing "Scan for updates" workflow is therefore **not** an available end-to-end production feature.
+
+## Tests
+
+```bash
+python -m unittest discover -s backend/tests -p 'test_*.py' -v
+git diff --check
+```
+
+Tests cover authentication, offline inference fallback, staging request guards, review and grounding, and pipeline isolation. Some hosted checks have been performed manually using fictional Mars rover data; automated tests are primarily local and mocked. Passing tests **do not** imply production readiness or complete fact verification.
+
+## Private staging inference
+
+`backend/intelligence/space_staging.py` connects to a separately deployed **private Hugging Face staging Space**, but makes no requests by default. A request needs explicit provider enablement and per-item approval, with a separate private-Space read token and Continuity service token. The staging gateway holds its own Hugging Face inference token. Do not paste tokens into code, issue reports, or chat.
+
+`backend/intelligence/reviewed.py` can combine a normalized inference result with a local evidence review. Exact quote offsets and warning flags remain preliminary; records stay `needs_review`. Staging is **synthetic-only** at this stage. Production inference is not deployed.
+
+See `backend/intelligence/SPACE_STAGING.md`, `docs/F1A_EVIDENCE_REVIEW.md`, and `docs/F1B_QUOTE_TRANSPORT.md`.
+
+## Roadmap (high level)
+
+1. Strengthen source-grounded extraction, review, evidence records, and resilience/error handling.
+2. Import ChatGPT exports and reconstruct conversations into distinct project histories with source references.
+3. Add read-only GitHub integration for commits, pull requests, issues, releases, and CI status.
+4. Reconcile multiple sources, sync incrementally, and expose permission-scoped context snapshots to humans and agents.
+5. Extend authorized connectors (email, calendar, and others), with durable sync and failure recovery.
+6. Build the interactive **Timeline Canvas**: move and inspect distinct continuities and their contextual relationships without changing historical facts.
+7. Prepare Cloudflare deployment, operational monitoring, security review, and user-access controls. `continuity.app` is a preferred domain, **not** a confirmed registration or active deployment.
+
+This roadmap describes **intent**, not implementation. Historical stage documentation in `docs/` and `demo_data/` may include outdated ThreadLinePMA workflows, models, defaults, and schema references; treat them as legacy reference material during the ongoing migration.
+
+## Development and attribution
+
+Continuity is an ongoing rearchitecture of an inherited ThreadLinePMA prototype, with a broader focus on evidence-backed context for both people and AI agents. Before a public product launch or redistribution of inherited code/assets, verify the upstream project's applicable license and permissions.
