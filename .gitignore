@@ -16,3 +16,6 @@ backend/.venv/
 .DS_Store
 .idea/
 .vscode/
+
+# Microsoft Office temporary lock files
+~$*
