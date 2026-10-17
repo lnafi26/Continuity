@@ -110,6 +110,133 @@ def mark_extracted(database_url: str, item_id: str) -> None:
             )
 
 
+
+class ExtractionWriteConflict(RuntimeError):
+    """Pending source has user-edited output requiring manual reconciliation."""
+
+
+def write_extraction_atomic(
+    database_url: str,
+    user_id: str,
+    project_id: str,
+    source_item_id: str,
+    *,
+    events: list[dict],
+    actions: list[dict],
+    color: str,
+) -> bool:
+    """Commit one source's generated rows AND processed marker atomically.
+
+    Returns False if another worker has already extracted this source. A row
+    lock serializes concurrent attempts; an exception causes psycopg's connection
+    context manager to roll back all statements. No model work is done here.
+
+    This intentionally rejects pending sources with user-edited events/actions
+    rather than duplicating or overwriting those edits. A requeued source with
+    only unedited AI rows can safely replace previous partial generated output.
+    """
+    if not isinstance(events, list) or not isinstance(actions, list):
+        raise ValueError("Events and actions must be lists.")
+    if any(not isinstance(x, dict) for x in events + actions):
+        raise ValueError("Events and actions must contain objects.")
+    with psycopg.connect(database_url) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                select si.extracted_at
+                from public.source_items si
+                join public.project_source_links l
+                  on l.source_item_id = si.id and l.user_id = %s
+                where si.id = %s and si.user_id = %s and l.project_id = %s
+                for update of si
+                """,
+                (user_id, source_item_id, user_id, project_id),
+            )
+            source_row = cursor.fetchone()
+            if source_row is None:
+                raise ValueError("No authorized source-project link exists.")
+            if source_row[0] is not None:
+                return False
+
+            cursor.execute(
+                """
+                select (
+                    exists (select 1 from public.project_events
+                            where user_id = %s and source_item_id = %s
+                              and user_edited = true)
+                    or exists (select 1 from public.project_actions
+                               where user_id = %s and source_item_id = %s
+                                 and user_edited = true)
+                )
+                """,
+                (user_id, source_item_id, user_id, source_item_id),
+            )
+            edited_row = cursor.fetchone()
+            if edited_row is None:
+                raise RuntimeError("Unable to check existing corrections.")
+            if edited_row[0]:
+                raise ExtractionWriteConflict(
+                    "Source has user-edited outputs and requires review."
+                )
+
+            # Replace any *unedited* partial output left by the former writer
+            # or a legitimate requeue. All deletes and inserts roll back together.
+            for table in ("project_events", "project_actions"):
+                cursor.execute(
+                    f"delete from public.{table} "
+                    "where user_id = %s and source_item_id = %s "
+                    "and user_edited = false",
+                    (user_id, source_item_id),
+                )
+
+            for ev in events:
+                cursor.execute(
+                    """
+                    insert into public.project_events
+                        (user_id, project_id, source_item_id, event_type, title,
+                         body, person, event_date, requires_response, confidence,
+                         user_edited, color)
+                    values (%s, %s, %s, %s, %s, %s, %s,
+                            coalesce(%s, now()), %s, %s, false, %s)
+                    """,
+                    (user_id, project_id, source_item_id, ev["event_type"],
+                     ev["title"], ev["body"], ev["person"],
+                     ev["event_date"], ev.get("requires_response"),
+                     round(ev["confidence"], 4), color),
+                )
+
+            for ac in actions:
+                status = ac.get("status") or "not_started"
+                cursor.execute(
+                    """
+                    insert into public.project_actions
+                        (user_id, project_id, source_item_id, title, assignee,
+                         due_date, status, backlog, completed, confidence,
+                         user_edited, color)
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, false, %s)
+                    """,
+                    (user_id, project_id, source_item_id, ac["title"],
+                     ac["assignee"], ac["due_date"], status,
+                     bool(ac.get("backlog", False)), status == "completed",
+                     round(ac["confidence"], 4), color),
+                )
+
+            # Only stamp success after EVERY generated row was inserted. The
+            # transaction also guards the stamp against independent failure.
+            cursor.execute(
+                """
+                update public.source_items
+                set extracted_at = now(), processing_status = 'processed',
+                    processing_error = null, updated_at = now()
+                where id = %s and user_id = %s and extracted_at is null
+                """,
+                (source_item_id, user_id),
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError("Source completion marker was not updated.")
+    return True
+
+
 def reset(database_url: str, user_id: str) -> dict:
     """Delete AI-generated (not user-edited) events/actions and re-queue items."""
     with psycopg.connect(database_url) as connection:

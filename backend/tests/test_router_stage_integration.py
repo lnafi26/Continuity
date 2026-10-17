@@ -68,10 +68,14 @@ class StageRouterIntegrationTests(unittest.TestCase):
         with patch.object(stage, "extract_repo") as repo:
             repo.fetch_queue.return_value = [it]
             self.assertEqual(stage.cmd_run(args, cfg), 0)
-            repo.insert_event.assert_called_once()
-            self.assertEqual(repo.insert_event.call_args.args[4]["title"], "Website update")
+            repo.write_extraction_atomic.assert_called_once()
+            call = repo.write_extraction_atomic.call_args
+            self.assertEqual(call.args[:4], ("mocked", USER_ID, "project-test", "item-1"))
+            self.assertEqual(call.kwargs["events"][0]["title"], "Website update")
+            self.assertEqual(call.kwargs["actions"], [])
+            repo.insert_event.assert_not_called()
             repo.insert_action.assert_not_called()
-            repo.mark_extracted.assert_called_once_with("mocked", "item-1")
+            repo.mark_extracted.assert_not_called()
 
     def test_digest_run_writes_deterministic_summary(self):
         stage = self.digest

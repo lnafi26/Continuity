@@ -68,20 +68,30 @@ def cmd_run(args, cfg) -> int:
     print(f"Extracting {len(items)} item(s) via offline model router "
           "(metadata-derived events; no external inference calls).")
 
-    ev_total = ac_total = 0
+    ev_total = ac_total = committed = failed = skipped = 0
     for it in items:
-        result = router.run("event_extraction", {"item": _item_dict(it)}).data
-        for ev in result["events"]:
-            extract_repo.insert_event(cfg.database_url, user_id, it.project_id, it.id, ev, it.color)
-        for ac in result["actions"]:
-            extract_repo.insert_action(cfg.database_url, user_id, it.project_id, it.id, ac, it.color)
-        extract_repo.mark_extracted(cfg.database_url, it.id)
-        ev_total += len(result["events"])
-        ac_total += len(result["actions"])
+        try:
+            result = router.run("event_extraction", {"item": _item_dict(it)}).data
+            saved = extract_repo.write_extraction_atomic(
+                cfg.database_url, user_id, it.project_id, it.id,
+                events=result["events"], actions=result["actions"], color=it.color,
+            )
+            if not saved:
+                skipped += 1  # Another run completed this source first.
+                continue
+            committed += 1
+            ev_total += len(result["events"])
+            ac_total += len(result["actions"])
+        except Exception:
+            # Preserve queue/transaction state; do not leak source text, DB
+            # details, credentials, or third-party error strings to output.
+            failed += 1
+            print("  one source extraction failed; details withheld")
 
     print(f"Extracted {ev_total} event(s) and {ac_total} action(s) "
-          f"from {len(items)} item(s).")
-    return 0
+          f"from {committed} committed item(s); {skipped} already processed; "
+          f"{failed} failed.")
+    return 0 if failed == 0 else 1
 
 
 def cmd_preview(args, cfg) -> int:
