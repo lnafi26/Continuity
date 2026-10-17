@@ -166,6 +166,30 @@ def _normalize_result(task: str, value: Any, payload: dict[str, Any]) -> dict[st
     raise ValueError(f"Unsupported inference task: {task}")
 
 
+class InferenceUnavailableError(RuntimeError):
+    """Safe, structured failure when neither provider can produce an answer.
+
+    Caller-facing diagnostics intentionally never include the source payload,
+    credentials, third-party response body, or raw exception message.
+    Rejected programmer input still raises ValueError before inference starts.
+    """
+
+    code = "inference_unavailable"
+
+    def __init__(self, task: str, *, primary_configured: bool):
+        self.task = task
+        self.primary_configured = primary_configured
+        super().__init__("Inference could not be completed; no result was produced.")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "message": str(self),
+            "task": self.task,
+            "primary_configured": self.primary_configured,
+        }
+
+
 class ModelRouter:
     """Opt-in provider with deterministic fallback and explicit provenance.
 
@@ -188,10 +212,13 @@ class ModelRouter:
                 reason = "primary_failed_validation_or_execution"
         else:
             reason = "no_primary_provider"
-        output = self.offline.infer(task, data)
-        return RouterResult(
-            _normalize_result(task, output, data),
-            self.offline.name,
-            True,
-            reason,
-        )
+        try:
+            output = self.offline.infer(task, data)
+            normalized = _normalize_result(task, output, data)
+        except Exception:
+            # No fabricated success, no raw exception details crossing the
+            # boundary. Source retention / retry policy is owned by the caller.
+            raise InferenceUnavailableError(
+                task, primary_configured=self.primary is not None
+            ) from None
+        return RouterResult(normalized, self.offline.name, True, reason)
