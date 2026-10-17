@@ -37,14 +37,8 @@ def prepare_claimed_extraction(
     }
 
 
-def process_one_claim_local(
-    database_url: str,
-    claim: JobClaim,
-) -> bool:
-    """Process one claimed job in disposable Docker only.
-
-    The fenced writer rechecks the lease before committing.
-    """
+def require_local_test_database(database_url: str) -> None:
+    """Validate the disposable Docker database before any writes."""
     settings = conninfo_to_dict(database_url)
 
     if (
@@ -58,6 +52,17 @@ def process_one_claim_local(
         raise ValueError(
             "R0.4 writes require the local Docker test database."
         )
+
+
+def process_one_claim_local(
+    database_url: str,
+    claim: JobClaim,
+) -> bool:
+    """Process one claimed job in disposable Docker only.
+
+    The fenced writer rechecks the lease before committing.
+    """
+    require_local_test_database(database_url)
 
     prepared = prepare_claimed_extraction(database_url, claim)
 
