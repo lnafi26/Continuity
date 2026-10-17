@@ -35,7 +35,7 @@ CREATE TABLE public.processing_jobs (
         (status = 'running' AND lease_token IS NOT NULL AND lease_until IS NOT NULL)
         OR (status <> 'running' AND lease_token IS NULL AND lease_until IS NULL)
     ),
-    CONSTRAINT processing_jobs_attempts_check CHECK (attempts <= max_attempts)
+    CONSTRAINT processing_jobs_attempts_within_max_check CHECK (attempts <= max_attempts)
 );
 
 CREATE INDEX processing_jobs_claim_idx
