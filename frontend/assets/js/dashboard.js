@@ -1449,6 +1449,79 @@ window.updateCurrentUserUI = (displayName) => {
   }
 };
 
+// Remove the previous account's in-memory and rendered dashboard data.
+// Called by auth.js when a session ends or the account changes.
+window.clearAccountData = () => {
+  window.showOooRange = undefined;
+  window.markCaughtUp = undefined;
+  projects = [];
+  actions = [];
+  activity = [];
+  activeProject = null;
+  activeTab = "timeline";
+
+  allItems = [];
+  projectIndex = {};
+  catchupGroups = [];
+  catchupCheckpointMs = null;
+  catchupCheckpointToMs = null;
+
+  boardState = { in_progress: [], completed: [], backlog: [] };
+  boardProjectFilter = new Set();
+  boardDueFrom = null;
+  boardDueTo = null;
+  actionStatusFilter = new Set(["in_progress", "backlog"]);
+  _actionFilterProjectId = null;
+  _drawerContext = null;
+  _editDialogOnSave = null;
+
+  closeDrawer();
+
+  for (const id of ["sourcesDialog", "editItemDialog"]) {
+    const dialog = $("#" + id);
+    if (dialog?.open) dialog.close();
+  }
+
+  for (const id of [
+    "drawerBody", "projectDetailBody", "editItemFields",
+    "projectGrid", "toasts"
+  ]) {
+    $("#" + id)?.replaceChildren();
+  }
+
+  for (const id of ["oooFrom", "oooTo", "boardDueFrom", "boardDueTo"]) {
+    const input = $("#" + id);
+    if (input) input.value = "";
+  }
+
+  window.setTimelineData({});
+  window.setBoardData({});
+  window.setDashboardData({});
+  window.setCatchupData({});
+  window.setMetrics({});
+  window.setSourceConnections([]);
+  window.updateCurrentUserUI("You");
+
+  const defaults = {
+    profileName: "Account",
+    profileInitials: "--",
+    profileTitle: "Sign in required",
+    accountEmail: "",
+    profileDisplayName: "",
+    profileJobTitle: "",
+  };
+
+  for (const [id, value] of Object.entries(defaults)) {
+    const node = $("#" + id);
+    if (!node) continue;
+    if ("value" in node) node.value = value;
+    else node.textContent = value;
+  }
+
+  showProjectsGrid();
+  showView("overview");
+};
+
 // Stage 7: start empty so no fabricated content shows; auth.js fills the
 // dashboard from Supabase after sign-in via window.setDashboardData.
 projects = [];

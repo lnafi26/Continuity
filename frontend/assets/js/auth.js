@@ -15,6 +15,11 @@
   const signupDialog = element("signupDialog");
   const accountDialog = element("accountDialog");
   let creatingAccount = false;
+  let displayedUserId = null;
+  let authGeneration = 0;
+
+  const sessionIsCurrent = (userId, generation) =>
+    displayedUserId === userId && authGeneration === generation;
 
   function showMessage(message, isError = false) {
     const output = element("authMessage");
@@ -67,7 +72,8 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
-  async function loadProfile(user) {
+  async function loadProfile(user, generation) {
+    if (!sessionIsCurrent(user.id, generation)) return;
     // Update the UI immediately, even if the profile row is missing or unavailable.
     const fallbackName = authDisplayName(user);
     window.updateCurrentUserUI?.(fallbackName);
@@ -81,6 +87,8 @@
       .select("display_name, job_title")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (!sessionIsCurrent(user.id, generation)) return;
 
     if (error) {
       console.error("Unable to load profile; using Supabase Auth name instead.", error);
@@ -99,7 +107,17 @@
   }
 
   async function showAuthenticatedUser(session) {
-    if (!session?.user) {
+    const userId = session?.user?.id || null;
+
+    if (!userId || userId !== displayedUserId) {
+      authGeneration++;
+      displayedUserId = userId;
+      window.clearAccountData?.();
+    }
+
+    const generation = authGeneration;
+
+    if (!userId) {
       clearSensitiveFields();
       if (!loginDialog.open) loginDialog.showModal();
       document.body.classList.remove("auth-pending");
@@ -108,16 +126,24 @@
 
     if (loginDialog.open) loginDialog.close();
     document.body.classList.remove("auth-pending");
-    await loadProfile(session.user);
-    await loadSourceConnections(session.user);
-    await loadProjectData(session.user);
+
+    await loadProfile(session.user, generation);
+    if (!sessionIsCurrent(userId, generation)) return;
+
+    await loadSourceConnections(session.user, generation);
+    if (!sessionIsCurrent(userId, generation)) return;
+
+    await loadProjectData(session.user, generation);
   }
 
-  async function loadSourceConnections(user) {
+  async function loadSourceConnections(user, generation) {
+    if (!sessionIsCurrent(user.id, generation)) return;
     const { data, error } = await db
       .from("source_connections")
       .select("provider, status, account_email, last_synced_at")
       .eq("user_id", user.id);
+    if (!sessionIsCurrent(user.id, generation)) return;
+
     if (error) {
       console.error("Unable to load source connections.", error);
       return;
@@ -127,7 +153,8 @@
 
   // Stage 7: load the user's real projects, timeline events, and actions from
   // Supabase and hand them to the dashboard renderer (window.setDashboardData).
-  async function loadProjectData(user) {
+  async function loadProjectData(user, generation = authGeneration) {
+    if (!sessionIsCurrent(user.id, generation)) return;
     const esc = (value = "") => {
       const el = document.createElement("div");
       el.textContent = value;
@@ -168,6 +195,8 @@
         db.from("source_items").select("id, source_type, sender, title, occurred_at, external_thread_id, source_url, text_excerpt, include_in_grouping").eq("user_id", user.id).order("occurred_at", { ascending: false, nullsFirst: false }),
         db.from("profiles").select("last_catchup_at").eq("id", user.id).maybeSingle(),
       ]);
+      if (!sessionIsCurrent(user.id, generation)) return;
+
       const failed = [projRes, evRes, acRes, linkRes, itemRes].find((r) => r.error);
       if (failed) {
         console.error("Unable to load dashboard data.", failed.error);
@@ -512,6 +541,7 @@
       // OOO override: re-filter already-loaded data client-side; does not move
       // the stored checkpoint (only "Catch Me Up" / markCaughtUp does that).
       window.showOooRange = (fromIso, toIso) => {
+        if (!sessionIsCurrent(user.id, generation)) return;
         if (!fromIso || !toIso) return;
         const fromMs = new Date(`${fromIso}T00:00:00`).getTime();
         const toMs = new Date(`${toIso}T23:59:59`).getTime();
@@ -530,10 +560,12 @@
       // Stage 8 mark_caught_up: advances the checkpoint to now, clearing the
       // digest (nothing "missed" as of the moment it's viewed).
       window.markCaughtUp = async () => {
+        if (!sessionIsCurrent(user.id, generation)) return;
         const nowIso = new Date().toISOString();
         const { error } = await db.from("profiles").upsert({
           id: user.id, last_catchup_at: nowIso, updated_at: nowIso,
         });
+        if (!sessionIsCurrent(user.id, generation)) return;
         if (error) {
           console.error("Failed to advance catch-up checkpoint.", error);
           window.toast?.("Could not update checkpoint", error.message);
@@ -938,7 +970,7 @@
       return;
     }
 
-    if (data.session) await db.auth.signOut();
+    if (data.session) await db.auth.signOut({ scope: "local" });
     creatingAccount = false;
     element("signupFormView").hidden = true;
     element("signupSuccess").hidden = false;
@@ -1152,10 +1184,29 @@
   });
 
   element("signOutButton").addEventListener("click", async () => {
+    const button = element("signOutButton");
+    button.disabled = true;
     clearSensitiveFields();
-    await db.auth.signOut();
-    accountDialog.close();
-    loginDialog.showModal();
+
+    try {
+      const { error } = await db.auth.signOut({ scope: "local" });
+      if (error) throw error;
+
+      accountDialog.close();
+      if (!loginDialog.open) loginDialog.showModal();
+    } catch (error) {
+      console.error("Unable to sign out.", error);
+      const message =
+        "Please try again. Your session may still be active.";
+
+      if (typeof window.toast === "function") {
+        window.toast("Sign-out unsuccessful", message);
+      } else {
+        window.alert(`Sign-out unsuccessful. ${message}`);
+      }
+    } finally {
+      button.disabled = false;
+    }
   });
 
   db.auth.onAuthStateChange((_event, session) => {
@@ -1163,7 +1214,13 @@
     setTimeout(() => showAuthenticatedUser(session).catch(console.error), 0);
   });
 
-  db.auth.getSession().then(({ data }) => showAuthenticatedUser(data.session)).catch(console.error);
+  const bootstrapGeneration = authGeneration;
+  db.auth.getSession()
+    .then(({ data }) => {
+      if (authGeneration !== bootstrapGeneration) return;
+      return showAuthenticatedUser(data.session);
+    })
+    .catch(console.error);
 
   // When the Stage 0 OAuth server redirects back with ?connected=<providers>,
   // confirm it and clean the URL. loadSourceConnections (run on session load)
