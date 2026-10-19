@@ -23,7 +23,14 @@
   }
 
   function clearSensitiveFields() {
-    ["authPassword", "signupPassword", "signupPasswordConfirm", "newPassword"]
+    [
+      "authPassword",
+      "signupPassword",
+      "signupPasswordConfirm",
+      "currentPassword",
+      "newPassword",
+      "confirmNewPassword", "passwordReauthCode"
+    ]
       .forEach((id) => {
         const input = element(id);
         if (input) input.value = "";
@@ -902,6 +909,12 @@
     const confirmation = element("signupPasswordConfirm").value;
     const message = element("signupMessage");
 
+    if (password.length < 15) {
+      message.textContent = "Use a password of at least 15 characters.";
+      message.classList.add("error-message");
+      return;
+    }
+
     if (password !== confirmation) {
       message.textContent = "Passwords do not match.";
       message.classList.add("error-message");
@@ -952,13 +965,152 @@
     accountDialog.close();
   });
 
+
+  const passwordReauthField = element("passwordReauthField");
+  const passwordReauthCode = element("passwordReauthCode");
+  const sendPasswordReauth = element("sendPasswordReauth");
+
+  let passwordReauthSent = false;
+
+  function passwordFeedback(message, isError = false) {
+    const output = element("passwordMessage");
+    output.textContent = message;
+    output.classList.toggle("error-message", isError);
+  }
+
+  sendPasswordReauth.addEventListener("click", async () => {
+    if (sendPasswordReauth.disabled) return;
+
+    sendPasswordReauth.disabled = true;
+    passwordFeedback("Sending verification code…");
+
+    try {
+      const { error } = await db.auth.reauthenticate();
+
+      if (error) {
+        passwordFeedback(
+          "Unable to send verification code. Please wait before retrying.",
+          true
+        );
+        return;
+      }
+
+      passwordReauthSent = true;
+      passwordReauthCode.value = "";
+      passwordReauthField.hidden = false;
+
+      passwordFeedback(
+        "Verification code sent. Check your email, then enter the code."
+      );
+    } catch {
+      passwordFeedback(
+        "Unable to contact the authentication service.",
+        true
+      );
+    } finally {
+      sendPasswordReauth.disabled = false;
+    }
+  });
+
   element("passwordForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const password = element("newPassword").value;
-    const { error } = await db.auth.updateUser({ password });
-    clearSensitiveFields();
-    if (error) return alert(error.message);
-    alert("Password updated.");
+
+    const form = element("passwordForm");
+    const button = form.querySelector('button[type="submit"]');
+
+    if (button.disabled) return;
+
+    const currentPassword = element("currentPassword").value;
+    const newPassword = element("newPassword").value;
+    const confirmation = element("confirmNewPassword").value;
+    const code = passwordReauthCode.value.trim();
+
+    if (!currentPassword) {
+      passwordFeedback("Enter your current password.", true);
+      return;
+    }
+
+    if (newPassword.length < 15) {
+      passwordFeedback(
+        "Use a new password of at least 15 characters.",
+        true
+      );
+      return;
+    }
+
+    if (newPassword !== confirmation) {
+      passwordFeedback("The new passwords do not match.", true);
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      passwordFeedback(
+        "Choose a password different from your current one.",
+        true
+      );
+      return;
+    }
+
+    if (passwordReauthSent && !/^\d{6,10}$/.test(code)) {
+      passwordFeedback("Enter a valid email verification code.", true);
+      return;
+    }
+
+    const attributes = {
+      password: newPassword,
+      current_password: currentPassword
+    };
+
+    if (passwordReauthSent) {
+      attributes.nonce = code;
+    }
+
+    button.disabled = true;
+    passwordFeedback("Updating your password…");
+
+    try {
+      const { error } = await db.auth.updateUser(attributes);
+
+      if (error) {
+        if (error.code === "reauthentication_needed") {
+          passwordReauthSent = false;
+          passwordReauthField.hidden = true;
+          sendPasswordReauth.hidden = false;
+
+          passwordFeedback(
+            "Additional verification is required. Select Send verification code.",
+            true
+          );
+        } else if (error.code === "reauthentication_not_valid") {
+          sendPasswordReauth.hidden = false;
+
+          passwordFeedback(
+            "The verification code is invalid or expired. Try again or request another code.",
+            true
+          );
+        } else {
+          passwordFeedback(
+            "Password change unsuccessful. Check your current password and try again.",
+            true
+          );
+        }
+        return;
+      }
+
+      passwordReauthSent = false;
+      passwordReauthField.hidden = true;
+      sendPasswordReauth.hidden = true;
+
+      passwordFeedback("Password updated successfully.");
+    } catch {
+      passwordFeedback(
+        "Unable to update your password. Please try again.",
+        true
+      );
+    } finally {
+      clearSensitiveFields();
+      button.disabled = false;
+    }
   });
 
   element("togglePassword").addEventListener("click", () => {
@@ -978,13 +1130,27 @@
     }
     showMessage("Sending password reset email…");
     const { error } = await db.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: `${window.location.origin}/reset-password.html`,
     });
     showMessage(error ? error.message : "Password reset email sent. Check your inbox.", Boolean(error));
   });
 
   element("profileButton").addEventListener("click", () => accountDialog.showModal());
   element("closeAccount").addEventListener("click", () => accountDialog.close());
+
+  // Clear credentials and temporary verification state whenever
+  // account settings closes, including via the Escape key.
+  accountDialog.addEventListener("close", () => {
+    clearSensitiveFields();
+
+    passwordReauthSent = false;
+    passwordReauthField.hidden = true;
+    sendPasswordReauth.hidden = true;
+    sendPasswordReauth.disabled = false;
+
+    passwordFeedback("");
+  });
+
   element("signOutButton").addEventListener("click", async () => {
     clearSensitiveFields();
     await db.auth.signOut();
