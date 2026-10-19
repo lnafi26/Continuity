@@ -1,0 +1,38 @@
+name: Deploy Continuity Staging
+
+# Manual only; no push-triggered public staging deployment.
+# Checkout explicitly targets staging and publishes only deploy/staging.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: continuity-staging-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish isolated staging holding page
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          persist-credentials: false
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload staging artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: deploy/staging
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
