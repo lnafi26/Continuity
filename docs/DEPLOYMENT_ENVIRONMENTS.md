@@ -5,7 +5,7 @@
 - **Production**: Cloudflare Pages, GitHub `main`, build output `deploy/production`.
   Only a public-safe holding page is published. No Supabase, OAuth, or backend calls.
 - **Staging**: GitHub Pages, GitHub Actions workflow `continuity-staging-pages.yml`
-  stored on the repository default branch `update`. It manually checks out
+  stored on the repository default branch `main`. It manually checks out
   branch `staging` and publishes **only** `deploy/staging`.
   Only a public-safe holding page is published.
 - **Development**: `feat/model-router`, locally served frontend.
@@ -15,7 +15,7 @@
 
 1. GitHub repository **Settings > Pages**: set **Source: GitHub Actions**.
 2. On the **Actions** tab, select **Deploy Continuity Staging** and click
-   **Run workflow** from the default `update` branch.
+   **Run workflow** from the default `main` branch.
 3. Cloudflare **Workers & Pages > Create > Pages > Connect to Git**:
    connect `lnafi26/Continuity` with production branch `main`, no framework,
    root directory unset/repository root, build command `exit 0`, and
