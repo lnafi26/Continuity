@@ -903,8 +903,15 @@
   element("backToLogin").addEventListener("click", openLogin);
   element("returnToLogin").addEventListener("click", openLogin);
 
-  element("signupForm").addEventListener("submit", async (event) => {
+  const signupForm = element("signupForm");
+  const signupSubmitButton = signupForm.querySelector('button[type="submit"]');
+
+  signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    // Prevent overlapping account-creation requests.
+    if (creatingAccount) return;
+
     const name = element("signupName").value.trim();
     const email = element("signupEmail").value.trim();
     const password = element("signupPassword").value;
@@ -924,30 +931,51 @@
     }
 
     creatingAccount = true;
+    signupSubmitButton.disabled = true;
     message.classList.remove("error-message");
     message.textContent = "Creating your account…";
-    const { data, error } = await db.auth.signUp({
-      email,
-      password,
-      options: { data: { display_name: name } },
-    });
-    clearSensitiveFields();
 
-    if (error) {
-      creatingAccount = false;
-      message.textContent = error.message;
+    try {
+      const { data, error } = await db.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: name } },
+      });
+
+      if (error) throw error;
+      if (!data?.user) {
+        throw new Error("Could not confirm account creation. Please try again.");
+      }
+
+      if (data.session) {
+        const { error: signOutError } = await db.auth.signOut({
+          scope: "local",
+        });
+
+        if (signOutError) {
+          throw new Error(
+            "Account created, but the temporary session could not be closed. Please refresh and sign out before continuing."
+          );
+        }
+      }
+
+      element("signupFormView").hidden = true;
+      element("signupSuccess").hidden = false;
+      element("signupSuccessText").textContent = data.session
+        ? "You will be redirected back to the sign-in page…"
+        : "Check your email to verify the account. You will be redirected back to sign in…";
+
+      setTimeout(openLogin, 3500);
+    } catch (error) {
+      console.error("Unable to complete signup.", error);
+      message.textContent =
+        error?.message || "Could not complete signup. Please try again.";
       message.classList.add("error-message");
-      return;
+    } finally {
+      clearSensitiveFields();
+      creatingAccount = false;
+      signupSubmitButton.disabled = false;
     }
-
-    if (data.session) await db.auth.signOut({ scope: "local" });
-    creatingAccount = false;
-    element("signupFormView").hidden = true;
-    element("signupSuccess").hidden = false;
-    element("signupSuccessText").textContent = data.session
-      ? "You will be redirected back to the sign-in page…"
-      : "Check your email to verify the account. You will be redirected back to sign in…";
-    setTimeout(openLogin, 3500);
   });
 
   element("profileForm").addEventListener("submit", async (event) => {
@@ -963,7 +991,7 @@
     });
 
     if (error) return alert(error.message);
-    await loadProfile(user);
+    await loadProfile(user, authGeneration);
     accountDialog.close();
   });
 
@@ -1123,18 +1151,64 @@
     element("togglePassword").setAttribute("aria-label", `${show ? "Hide" : "Show"} password`);
   });
 
-  element("forgotPassword").addEventListener("click", async () => {
+  let recoveryEmailPending = false;
+  let recoveryEmailCooldownUntil = 0;
+
+  element("forgotPassword").addEventListener("click", async (event) => {
+    event.preventDefault();
+
+    if (recoveryEmailPending) return;
+
+    const remainingSeconds = Math.ceil(
+      (recoveryEmailCooldownUntil - Date.now()) / 1000
+    );
+
+    if (remainingSeconds > 0) {
+      showMessage(
+        `Please wait ${remainingSeconds} seconds before requesting another reset email.`,
+        true
+      );
+      return;
+    }
+
     const email = element("authEmail").value.trim();
+
     if (!email) {
-      showMessage("Enter your email address first, then select Forgot your password.", true);
+      showMessage(
+        "Enter your email address first, then select Forgot your password.",
+        true
+      );
       element("authEmail").focus();
       return;
     }
-    showMessage("Sending password reset email…");
-    const { error } = await db.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password.html`,
-    });
-    showMessage(error ? error.message : "Password reset email sent. Check your inbox.", Boolean(error));
+
+    const button = element("forgotPassword");
+    recoveryEmailPending = true;
+    button.disabled = true;
+    showMessage("Requesting password reset instructions…");
+
+    try {
+      const { error } = await db.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password.html`,
+      });
+
+      if (error) throw error;
+
+      recoveryEmailCooldownUntil = Date.now() + 60_000;
+
+      showMessage(
+        "If an account exists for that email, password reset instructions will be sent."
+      );
+    } catch (error) {
+      console.error("Password recovery request failed.", error);
+      showMessage(
+        "Unable to process the request. Please wait and try again.",
+        true
+      );
+    } finally {
+      recoveryEmailPending = false;
+      button.disabled = false;
+    }
   });
 
   element("profileButton").addEventListener("click", () => accountDialog.showModal());

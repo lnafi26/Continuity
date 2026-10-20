@@ -30,7 +30,13 @@
     window.location.hash.substring(1)
   );
 
-  if (query.has("error") || fragment.has("error")) {
+  // Recovery errors may be returned in the query string or URL fragment.
+  const errorParameters = ["error", "error_code", "error_description"];
+  const callbackHasError = [query, fragment].some((parameters) =>
+    errorParameters.some((key) => parameters.has(key))
+  );
+
+  if (callbackHasError) {
     cleanUrl();
     setStatus("This recovery link is invalid or expired. Please request a new one.");
     return;
