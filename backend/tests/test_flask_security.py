@@ -34,6 +34,22 @@ class ProtectedRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         run.assert_not_called()
 
+    @patch.object(server.subprocess, 'run')
+    @patch.object(server, 'verify_access_token', return_value=VERIFIED_ID)
+    def test_pipeline_disabled_for_authenticated_users(self, verify, run):
+        with patch.object(server, 'config', Mock(pipeline_ready=False)):
+            response = self.client.post(
+                '/pipeline/run',
+                headers=HEADER,
+                json={'user_id': OTHER_ID},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(response.json['ok'])
+        self.assertEqual(response.json['steps'], [])
+        verify.assert_called_once()
+        run.assert_not_called()
+
     @patch.object(server, '_build_flow')
     def test_google_start_requires_post_and_authenticated_session(self, build_flow):
         self.assertEqual(self.client.get('/auth/google/start?user_id=' + OTHER_ID).status_code, 405)
@@ -58,7 +74,7 @@ class ProtectedRouteTests(unittest.TestCase):
     @patch.object(server, 'verify_access_token', return_value=VERIFIED_ID)
     def test_pipeline_uses_verified_identity_even_when_body_spoofed(self, verify, run):
         run.return_value = Mock(returncode=0, stdout='ok', stderr='')
-        with patch.object(server, 'config', Mock(is_complete=True)), \
+        with patch.object(server, 'config', Mock(is_complete=True, pipeline_ready=True)), \
              patch.object(server, 'PIPELINE_STEPS', [('sync', ['worker.py'])]):
             response = self.client.post('/pipeline/run', headers=HEADER,
                                         json={'user_id': OTHER_ID})
