@@ -258,8 +258,8 @@ let activity = [
   },
 ];
 const connectors = [
-  { id: "gmail", name: "Gmail", description: "Import selected messages, threads, and attachment metadata", icon: "M", connected: false },
-  { id: "google_calendar", name: "Google Calendar", description: "Import meetings, attendees, dates, and descriptions", icon: "31", connected: false },
+  { id: "gmail", name: "Gmail", description: "Read-only Gmail connection. Imports are not enabled yet.", icon: "M", connected: false },
+  { id: "google_calendar", name: "Google Calendar", description: "Read-only calendar connection. Imports are not enabled yet.", icon: "31", connected: false },
   { id: "slack", name: "Slack", description: "Planned after Gmail and Calendar", icon: "S", connected: false, comingSoon: true },
 ];
 const $ = (s, r = document) => r.querySelector(s),

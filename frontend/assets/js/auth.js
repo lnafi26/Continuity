@@ -1275,13 +1275,14 @@
     })
     .catch(console.error);
 
-  // When the Stage 0 OAuth server redirects back with ?connected=<providers>,
-  // confirm it and clean the URL. loadSourceConnections (run on session load)
-  // refreshes the "Connected" state from the source_connections table.
+  // The OAuth return parameter is not proof of a successful connection.
+  // Connection status is verified separately through source_connections.
   const connectedParam = new URLSearchParams(window.location.search).get("connected");
   if (connectedParam) {
-    const names = connectedParam.replace(/_/g, " ");
-    window.toast?.("Source connected", `${names} is now importing (read-only).`);
+    window.toast?.(
+      "Connection setup returned",
+      "Check Manage apps to confirm the connection. Automatic imports are not enabled."
+    );
     const cleanUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, document.title, cleanUrl);
   }
