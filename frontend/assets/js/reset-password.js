@@ -42,9 +42,17 @@
     return;
   }
 
-  const hasCallback =
-    query.has("code") ||
-    fragment.has("access_token");
+  // This page uses Supabase's implicit flow. A standalone PKCE
+  // code is not a supported recovery callback in this configuration.
+  if (query.has("code") && !fragment.has("access_token")) {
+    cleanUrl();
+    setStatus(
+      "This recovery link could not be verified. Please request a new one."
+    );
+    return;
+  }
+
+  const hasCallback = fragment.has("access_token");
 
   if (!hasCallback) {
     setStatus("Open the password-reset link from your email to continue.");
@@ -78,6 +86,34 @@
     form.hidden = false;
     setStatus("Recovery link verified. Choose a new password.");
     cleanUrl();
+  });
+
+  // Detect errors returned by Supabase during callback initialization.
+  // Authorization still requires a valid PASSWORD_RECOVERY event.
+  db.auth.initialize().then(({ error }) => {
+    if (recoveryAuthorized) return;
+
+    if (error) {
+      verificationPending = false;
+      form.hidden = true;
+      cleanUrl();
+      setStatus(
+        "This recovery link could not be verified. Please request a new one."
+      );
+      return;
+    }
+
+    // Initialization success is not recovery authorization.
+    // Wait for Supabase's PASSWORD_RECOVERY event.
+  }).catch(() => {
+    if (recoveryAuthorized) return;
+
+    verificationPending = false;
+    form.hidden = true;
+    cleanUrl();
+    setStatus(
+      "Recovery verification could not be completed. Please request a new link."
+    );
   });
 
   // A slow response does not establish that a recovery link is invalid.
