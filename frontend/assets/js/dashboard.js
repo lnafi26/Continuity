@@ -426,9 +426,9 @@ window.setSourceConnections = (rows = []) => {
   if (prompt) prompt.hidden = connected.length > 0;
 
   if (connected.length) {
-    $("#syncTitle").textContent = "Automatic sync active";
-    $("#syncStatus").textContent = "Ready to scan connected sources";
-    $("#scanBtn").textContent = "Scan for updates";
+    $("#syncTitle").textContent = "Apps connected";
+    $("#syncStatus").textContent = "Automatic imports are not enabled";
+    $("#scanBtn").textContent = "Manage apps";
   } else {
     $("#syncTitle").textContent = "Waiting for a connection";
     $("#syncStatus").textContent = "No automatic imports yet";
@@ -1597,33 +1597,8 @@ $("#manageSources").onclick = $("#sourcesNav").onclick = () =>
 $$(".close-dialog").forEach(
   (b) => (b.onclick = () => b.closest("dialog").close()),
 );
-$("#scanBtn").onclick = async () => {
-  if (!connectors.some((connector) => connector.connected)) {
-    $("#sourcesDialog").showModal();
-    return;
-  }
-  const b = $("#syncBox");
-  b.classList.add("loading");
-  $("#scanBtn").disabled = true;
-  $("#scanBtn").textContent = "Scanning…";
-  try {
-    const result = await window.runPipelineScan?.();
-    $("#syncStatus").textContent = "Last scan just now";
-    if (!result) {
-      toast("Could not scan", "The local pipeline server (backend/auth/server.py) isn't reachable.");
-    } else if (result.ok) {
-      toast("Workspace scan complete", "All pipeline stages finished cleanly.");
-    } else {
-      const failed = (result.steps || []).filter((s) => !s.ok).map((s) => s.stage);
-      toast("Scan finished with errors", `Check the terminal running the pipeline server -- ${failed.join(", ") || "a stage"} reported a problem.`);
-    }
-  } catch (err) {
-    toast("Could not scan", err?.message || "The local pipeline server isn't reachable.");
-  } finally {
-    b.classList.remove("loading");
-    $("#scanBtn").disabled = false;
-    $("#scanBtn").textContent = "Scan for updates";
-  }
+$("#scanBtn").onclick = () => {
+  $("#sourcesDialog").showModal();
 };
 document.onkeydown = (e) => {
   if (e.key === "Escape") closeDrawer();

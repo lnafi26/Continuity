@@ -17,6 +17,7 @@
   let creatingAccount = false;
   let displayedUserId = null;
   let authGeneration = 0;
+  let authEventSequence = 0;
 
   const sessionIsCurrent = (userId, generation) =>
     displayedUserId === userId && authGeneration === generation;
@@ -865,37 +866,6 @@
 
 
 
-  // "Scan for updates" -- runs the real Stages 1-7 pipeline (sync through
-  // digest summarize) for the signed-in user on the same local Stage 0
-  // server, then reloads the dashboard from Supabase so the result shows up
-  // without a page refresh. Synchronous: the request blocks for as long as
-  // the pipeline takes (LLM calls included), same tradeoff as running it
-  // from the terminal, just from one button instead of eight commands.
-  window.runPipelineScan = async () => {
-    const { data: { session } } = await db.auth.getSession();
-    if (!session) throw new Error("Sign in before scanning for updates.");
-
-    const oauthBaseUrl = config.oauthBaseUrl;
-    if (!oauthBaseUrl) {
-      throw new Error("Set oauthBaseUrl in supabase-config.js to the Stage 0 OAuth server.");
-    }
-
-    const res = await fetch(new URL("/pipeline/run", oauthBaseUrl), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({}),
-    });
-    const result = await res.json().catch(() => ({ ok: false, steps: [], error: "Bad response from pipeline server." }));
-
-    // Refresh regardless of per-stage failures -- earlier stages (e.g. a
-    // stale connection) failing doesn't mean nothing new is worth showing;
-    // later stages report their own real state either way.
-    await loadProjectData(session.user);
-    return result;
-  };
 
   element("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1211,7 +1181,16 @@
 
   db.auth.onAuthStateChange((_event, session) => {
     if (creatingAccount) return;
-    setTimeout(() => showAuthenticatedUser(session).catch(console.error), 0);
+
+    // Invalidate outstanding account-data requests immediately.
+    authGeneration++;
+    const eventSequence = ++authEventSequence;
+
+    // Supabase recommends deferring additional auth-related work.
+    setTimeout(() => {
+      if (eventSequence !== authEventSequence) return;
+      showAuthenticatedUser(session).catch(console.error);
+    }, 0);
   });
 
   const bootstrapGeneration = authGeneration;
