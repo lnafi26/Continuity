@@ -53,25 +53,23 @@
     return;
   }
 
-  // This renderer currently supports one dated historical lane.
-  // The planner already understands parallel workstreams,
-  // but multi-lane visualization comes in the next milestone.
-  if (
-    layout.strands.length !== 1 ||
-    layout.undated.length !== 0 ||
-    layout.strands[0].nodes.length === 0
-  ) {
+  const visibleStrands = layout.strands.filter(
+    strand => strand.nodes.length > 0
+  );
+
+  if (layout.undated.length || !visibleStrands.length) {
     stage.textContent =
       "This historical layout is not yet supported by the preview.";
     return;
   }
 
-  const positions = layout.strands[0].nodes.map(
-    ({ eventId, x, y }) => ({
+  const positions = visibleStrands.flatMap(strand =>
+    strand.nodes.map(({ eventId, x, y }) => ({
       event: eventsById.get(eventId),
       x,
-      y
-    })
+      y,
+      strandId: strand.id
+    }))
   );
 
   if (positions.some(({ event }) =>
@@ -82,11 +80,14 @@
     return;
   }
 
-  const events = positions.map(({ event }) => event);
+  const events = positions.map(({ event }) => event)
+    .sort((a, b) =>
+      a.occurredAt.localeCompare(b.occurredAt)
+    );
 
   const svg = svgElement("svg", {
     class: "no-canvas-lines",
-    viewBox: "0 0 1000 280",
+    viewBox: `0 0 ${layout.width} ${layout.height}`,
     preserveAspectRatio: "none",
     "aria-hidden": "true"
   });
@@ -112,20 +113,24 @@
 
   svg.append(
     svgElement("rect", {
-      width: 1000,
-      height: 280,
+      width: layout.width,
+      height: layout.height,
       fill: "url(#noCanvasDynamicGrid)"
     })
   );
 
-  if (positions.length > 1) {
-    let pathData = `M ${positions[0].x} ${positions[0].y}`;
+  // Independent strands never acquire invented connections.
+  const strandColors = ["#82adc5", "#83cddd", "#a8dfc9"];
 
-    for (let index = 1; index < positions.length; index++) {
-      const previous = positions[index - 1];
-      const current = positions[index];
-      // A decorative curve between actual planned event positions.
-      // Geometry does not alter dates or imply relationships.
+  visibleStrands.forEach((strand, lane) => {
+    const points = strand.nodes;
+    if (points.length < 2) return;
+
+    let pathData = `M ${points[0].x} ${points[0].y}`;
+
+    for (let index = 1; index < points.length; index++) {
+      const previous = points[index - 1];
+      const current = points[index];
       const distance = current.x - previous.x;
       const lift = Math.min(
         36, Math.max(12, distance * 0.06)
@@ -141,12 +146,12 @@
       svgElement("path", {
         d: pathData,
         fill: "none",
-        stroke: "#82adc5",
+        stroke: strandColors[lane % strandColors.length],
         "stroke-width": 3,
         "stroke-linecap": "round"
       })
     );
-  }
+  });
 
   const nodes = positions.map(({ event, x, y }) => {
     const button = document.createElement("button");
@@ -161,8 +166,8 @@
       })}`
     );
 
-    button.style.left = (x / 10) + "%";
-    button.style.top = (y / 280 * 100) + "%";
+    button.style.left = (x / layout.width * 100) + "%";
+    button.style.top = (y / layout.height * 100) + "%";
 
     // Align the marker itself with the underlying strand.
     button.style.transform = "translate(-50%, -23px)";
@@ -203,7 +208,20 @@
     labels.append(label);
   }
 
-  stage.replaceChildren(svg, ...nodes, labels);
+  const laneLabels = visibleStrands.map(strand => {
+    const label = document.createElement("span");
+    label.className = "no-canvas-lane-label";
+    label.textContent = strand.label;
+    label.style.top =
+      ((strand.nodes[0].y - 80) / layout.height * 100) + "%";
+    return label;
+  });
+
+  // The viewport reads these dimensions when applying zoom.
+  stage.dataset.noBaseWidth = String(layout.width);
+  stage.dataset.noBaseHeight = String(layout.height);
+
+  stage.replaceChildren(svg, ...laneLabels, ...nodes, labels);
 
   console.info(
     `Continuity Timeline: rendered ${events.length} synthetic events.`

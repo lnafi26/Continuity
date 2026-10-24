@@ -168,3 +168,50 @@
     align-items: flex-start;
   }
 }
+
+
+/* Historical workstream identification */
+.continuity-shell .no-canvas-lane-label {
+  position: absolute;
+  left: 16px;
+  z-index: 1;
+  max-width: 145px;
+  color: var(--no-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+
+/* Synthetic Timeline scenario selector */
+.continuity-shell .no-demo-mode {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 20px;
+}
+
+.continuity-shell .no-demo-mode a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid var(--no-border);
+  border-radius: var(--no-radius-small);
+  color: var(--no-secondary);
+  text-decoration: none;
+}
+
+.continuity-shell .no-demo-mode a:hover,
+.continuity-shell .no-demo-mode a[aria-current="page"] {
+  background: var(--no-elevated);
+  color: var(--no-text);
+  border-color: var(--no-accent);
+}
+
+.continuity-shell .no-demo-mode small {
+  width: 100%;
+  color: var(--no-secondary);
+  line-height: 1.5;
+}

@@ -20,7 +20,10 @@
   const MIN = 0.75;
   const MAX = 2;
   const STEP = 0.25;
-  const BASE_HEIGHT = 280;
+  const BASE_HEIGHT =
+    Number(stage.dataset.noBaseHeight) || 280;
+  const BASE_WIDTH =
+    Number(stage.dataset.noBaseWidth) || 1000;
 
   let zoom = 1;
   let drag = null;
@@ -45,7 +48,7 @@
 
     zoom = clamp(nextZoom, MIN, MAX);
 
-    const baseWidth = Math.max(1000, viewport.clientWidth);
+    const baseWidth = Math.max(BASE_WIDTH, viewport.clientWidth);
 
     stage.style.width = Math.round(baseWidth * zoom) + "px";
     stage.style.height = Math.round(BASE_HEIGHT * zoom) + "px";

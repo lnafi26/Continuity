@@ -36,7 +36,7 @@
     ...document.querySelectorAll(".no-timeline-event")
   ];
 
-  function showEvent(id) {
+  function showEvent(id, { restoringScenario = false } = {}) {
     const record = records[id];
     if (!record || !continuity || !inspector) return;
 
@@ -72,6 +72,10 @@
         String(button.dataset.noEvent === id)
       );
     }
+
+    // Scenario restoration must not scroll to the Inspector.
+    // The Timeline itself will be revealed after page loading.
+    if (restoringScenario) return;
 
     if (!alreadyViewing) {
       // Cross-view navigation: bring the requested details into view.
@@ -121,4 +125,45 @@
       )?.click();
     }
   );
+
+  // Restore the Continuity workspace after scenario switching.
+  const entryParams = new URLSearchParams(window.location.search);
+
+  if (entryParams.get("view") === "continuity") {
+    const requested = entryParams.get("event");
+
+    // An event in the multi-strand example may not exist
+    // in the single-strand example.
+    const fallback = Object.hasOwn(records, "architecture")
+      ? "architecture"
+      : Object.keys(records)[0];
+
+    const selected = requested && Object.hasOwn(records, requested)
+      ? requested
+      : fallback;
+
+    if (selected) {
+      showEvent(selected, { restoringScenario: true });
+
+      const revealTimeline = () => {
+        document.querySelector(
+          "#view-continuity .no-canvas-region"
+        )?.scrollIntoView({
+          behavior: "auto",
+          block: "start"
+        });
+      };
+
+      if (document.readyState === "complete") {
+        revealTimeline();
+      } else {
+        window.addEventListener(
+          "load",
+          revealTimeline,
+          { once: true }
+        );
+      }
+    }
+  }
+
 })();
