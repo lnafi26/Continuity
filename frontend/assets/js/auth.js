@@ -15,6 +15,12 @@
   const signupDialog = element("signupDialog");
   const accountDialog = element("accountDialog");
   let creatingAccount = false;
+  let displayedUserId = null;
+  let authGeneration = 0;
+  let authEventSequence = 0;
+
+  const sessionIsCurrent = (userId, generation) =>
+    displayedUserId === userId && authGeneration === generation;
 
   function showMessage(message, isError = false) {
     const output = element("authMessage");
@@ -23,7 +29,14 @@
   }
 
   function clearSensitiveFields() {
-    ["authPassword", "signupPassword", "signupPasswordConfirm", "newPassword"]
+    [
+      "authPassword",
+      "signupPassword",
+      "signupPasswordConfirm",
+      "currentPassword",
+      "newPassword",
+      "confirmNewPassword", "passwordReauthCode"
+    ]
       .forEach((id) => {
         const input = element(id);
         if (input) input.value = "";
@@ -60,7 +73,8 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
-  async function loadProfile(user) {
+  async function loadProfile(user, generation) {
+    if (!sessionIsCurrent(user.id, generation)) return;
     // Update the UI immediately, even if the profile row is missing or unavailable.
     const fallbackName = authDisplayName(user);
     window.updateCurrentUserUI?.(fallbackName);
@@ -74,6 +88,8 @@
       .select("display_name, job_title")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (!sessionIsCurrent(user.id, generation)) return;
 
     if (error) {
       console.error("Unable to load profile; using Supabase Auth name instead.", error);
@@ -92,7 +108,17 @@
   }
 
   async function showAuthenticatedUser(session) {
-    if (!session?.user) {
+    const userId = session?.user?.id || null;
+
+    if (!userId || userId !== displayedUserId) {
+      authGeneration++;
+      displayedUserId = userId;
+      window.clearAccountData?.();
+    }
+
+    const generation = authGeneration;
+
+    if (!userId) {
       clearSensitiveFields();
       if (!loginDialog.open) loginDialog.showModal();
       document.body.classList.remove("auth-pending");
@@ -101,16 +127,24 @@
 
     if (loginDialog.open) loginDialog.close();
     document.body.classList.remove("auth-pending");
-    await loadProfile(session.user);
-    await loadSourceConnections(session.user);
-    await loadProjectData(session.user);
+
+    await loadProfile(session.user, generation);
+    if (!sessionIsCurrent(userId, generation)) return;
+
+    await loadSourceConnections(session.user, generation);
+    if (!sessionIsCurrent(userId, generation)) return;
+
+    await loadProjectData(session.user, generation);
   }
 
-  async function loadSourceConnections(user) {
+  async function loadSourceConnections(user, generation) {
+    if (!sessionIsCurrent(user.id, generation)) return;
     const { data, error } = await db
       .from("source_connections")
       .select("provider, status, account_email, last_synced_at")
       .eq("user_id", user.id);
+    if (!sessionIsCurrent(user.id, generation)) return;
+
     if (error) {
       console.error("Unable to load source connections.", error);
       return;
@@ -120,7 +154,8 @@
 
   // Stage 7: load the user's real projects, timeline events, and actions from
   // Supabase and hand them to the dashboard renderer (window.setDashboardData).
-  async function loadProjectData(user) {
+  async function loadProjectData(user, generation = authGeneration) {
+    if (!sessionIsCurrent(user.id, generation)) return;
     const esc = (value = "") => {
       const el = document.createElement("div");
       el.textContent = value;
@@ -161,6 +196,8 @@
         db.from("source_items").select("id, source_type, sender, title, occurred_at, external_thread_id, source_url, text_excerpt, include_in_grouping").eq("user_id", user.id).order("occurred_at", { ascending: false, nullsFirst: false }),
         db.from("profiles").select("last_catchup_at").eq("id", user.id).maybeSingle(),
       ]);
+      if (!sessionIsCurrent(user.id, generation)) return;
+
       const failed = [projRes, evRes, acRes, linkRes, itemRes].find((r) => r.error);
       if (failed) {
         console.error("Unable to load dashboard data.", failed.error);
@@ -505,6 +542,7 @@
       // OOO override: re-filter already-loaded data client-side; does not move
       // the stored checkpoint (only "Catch Me Up" / markCaughtUp does that).
       window.showOooRange = (fromIso, toIso) => {
+        if (!sessionIsCurrent(user.id, generation)) return;
         if (!fromIso || !toIso) return;
         const fromMs = new Date(`${fromIso}T00:00:00`).getTime();
         const toMs = new Date(`${toIso}T23:59:59`).getTime();
@@ -523,10 +561,12 @@
       // Stage 8 mark_caught_up: advances the checkpoint to now, clearing the
       // digest (nothing "missed" as of the moment it's viewed).
       window.markCaughtUp = async () => {
+        if (!sessionIsCurrent(user.id, generation)) return;
         const nowIso = new Date().toISOString();
         const { error } = await db.from("profiles").upsert({
           id: user.id, last_catchup_at: nowIso, updated_at: nowIso,
         });
+        if (!sessionIsCurrent(user.id, generation)) return;
         if (error) {
           console.error("Failed to advance catch-up checkpoint.", error);
           window.toast?.("Could not update checkpoint", error.message);
@@ -826,37 +866,6 @@
 
 
 
-  // "Scan for updates" -- runs the real Stages 1-7 pipeline (sync through
-  // digest summarize) for the signed-in user on the same local Stage 0
-  // server, then reloads the dashboard from Supabase so the result shows up
-  // without a page refresh. Synchronous: the request blocks for as long as
-  // the pipeline takes (LLM calls included), same tradeoff as running it
-  // from the terminal, just from one button instead of eight commands.
-  window.runPipelineScan = async () => {
-    const { data: { session } } = await db.auth.getSession();
-    if (!session) throw new Error("Sign in before scanning for updates.");
-
-    const oauthBaseUrl = config.oauthBaseUrl;
-    if (!oauthBaseUrl) {
-      throw new Error("Set oauthBaseUrl in supabase-config.js to the Stage 0 OAuth server.");
-    }
-
-    const res = await fetch(new URL("/pipeline/run", oauthBaseUrl), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({}),
-    });
-    const result = await res.json().catch(() => ({ ok: false, steps: [], error: "Bad response from pipeline server." }));
-
-    // Refresh regardless of per-stage failures -- earlier stages (e.g. a
-    // stale connection) failing doesn't mean nothing new is worth showing;
-    // later stages report their own real state either way.
-    await loadProjectData(session.user);
-    return result;
-  };
 
   element("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -894,13 +903,26 @@
   element("backToLogin").addEventListener("click", openLogin);
   element("returnToLogin").addEventListener("click", openLogin);
 
-  element("signupForm").addEventListener("submit", async (event) => {
+  const signupForm = element("signupForm");
+  const signupSubmitButton = signupForm.querySelector('button[type="submit"]');
+
+  signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    // Prevent overlapping account-creation requests.
+    if (creatingAccount) return;
+
     const name = element("signupName").value.trim();
     const email = element("signupEmail").value.trim();
     const password = element("signupPassword").value;
     const confirmation = element("signupPasswordConfirm").value;
     const message = element("signupMessage");
+
+    if (password.length < 15) {
+      message.textContent = "Use a password of at least 15 characters.";
+      message.classList.add("error-message");
+      return;
+    }
 
     if (password !== confirmation) {
       message.textContent = "Passwords do not match.";
@@ -909,30 +931,51 @@
     }
 
     creatingAccount = true;
+    signupSubmitButton.disabled = true;
     message.classList.remove("error-message");
     message.textContent = "Creating your account…";
-    const { data, error } = await db.auth.signUp({
-      email,
-      password,
-      options: { data: { display_name: name } },
-    });
-    clearSensitiveFields();
 
-    if (error) {
-      creatingAccount = false;
-      message.textContent = error.message;
+    try {
+      const { data, error } = await db.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: name } },
+      });
+
+      if (error) throw error;
+      if (!data?.user) {
+        throw new Error("Could not confirm account creation. Please try again.");
+      }
+
+      if (data.session) {
+        const { error: signOutError } = await db.auth.signOut({
+          scope: "local",
+        });
+
+        if (signOutError) {
+          throw new Error(
+            "Account created, but the temporary session could not be closed. Please refresh and sign out before continuing."
+          );
+        }
+      }
+
+      element("signupFormView").hidden = true;
+      element("signupSuccess").hidden = false;
+      element("signupSuccessText").textContent = data.session
+        ? "You will be redirected back to the sign-in page…"
+        : "Check your email to verify the account. You will be redirected back to sign in…";
+
+      setTimeout(openLogin, 3500);
+    } catch (error) {
+      console.error("Unable to complete signup.", error);
+      message.textContent =
+        error?.message || "Could not complete signup. Please try again.";
       message.classList.add("error-message");
-      return;
+    } finally {
+      clearSensitiveFields();
+      creatingAccount = false;
+      signupSubmitButton.disabled = false;
     }
-
-    if (data.session) await db.auth.signOut();
-    creatingAccount = false;
-    element("signupFormView").hidden = true;
-    element("signupSuccess").hidden = false;
-    element("signupSuccessText").textContent = data.session
-      ? "You will be redirected back to the sign-in page…"
-      : "Check your email to verify the account. You will be redirected back to sign in…";
-    setTimeout(openLogin, 3500);
   });
 
   element("profileForm").addEventListener("submit", async (event) => {
@@ -948,17 +991,156 @@
     });
 
     if (error) return alert(error.message);
-    await loadProfile(user);
+    await loadProfile(user, authGeneration);
     accountDialog.close();
+  });
+
+
+  const passwordReauthField = element("passwordReauthField");
+  const passwordReauthCode = element("passwordReauthCode");
+  const sendPasswordReauth = element("sendPasswordReauth");
+
+  let passwordReauthSent = false;
+
+  function passwordFeedback(message, isError = false) {
+    const output = element("passwordMessage");
+    output.textContent = message;
+    output.classList.toggle("error-message", isError);
+  }
+
+  sendPasswordReauth.addEventListener("click", async () => {
+    if (sendPasswordReauth.disabled) return;
+
+    sendPasswordReauth.disabled = true;
+    passwordFeedback("Sending verification code…");
+
+    try {
+      const { error } = await db.auth.reauthenticate();
+
+      if (error) {
+        passwordFeedback(
+          "Unable to send verification code. Please wait before retrying.",
+          true
+        );
+        return;
+      }
+
+      passwordReauthSent = true;
+      passwordReauthCode.value = "";
+      passwordReauthField.hidden = false;
+
+      passwordFeedback(
+        "Verification code sent. Check your email, then enter the code."
+      );
+    } catch {
+      passwordFeedback(
+        "Unable to contact the authentication service.",
+        true
+      );
+    } finally {
+      sendPasswordReauth.disabled = false;
+    }
   });
 
   element("passwordForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const password = element("newPassword").value;
-    const { error } = await db.auth.updateUser({ password });
-    clearSensitiveFields();
-    if (error) return alert(error.message);
-    alert("Password updated.");
+
+    const form = element("passwordForm");
+    const button = form.querySelector('button[type="submit"]');
+
+    if (button.disabled) return;
+
+    const currentPassword = element("currentPassword").value;
+    const newPassword = element("newPassword").value;
+    const confirmation = element("confirmNewPassword").value;
+    const code = passwordReauthCode.value.trim();
+
+    if (!currentPassword) {
+      passwordFeedback("Enter your current password.", true);
+      return;
+    }
+
+    if (newPassword.length < 15) {
+      passwordFeedback(
+        "Use a new password of at least 15 characters.",
+        true
+      );
+      return;
+    }
+
+    if (newPassword !== confirmation) {
+      passwordFeedback("The new passwords do not match.", true);
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      passwordFeedback(
+        "Choose a password different from your current one.",
+        true
+      );
+      return;
+    }
+
+    if (passwordReauthSent && !/^\d{6,10}$/.test(code)) {
+      passwordFeedback("Enter a valid email verification code.", true);
+      return;
+    }
+
+    const attributes = {
+      password: newPassword,
+      current_password: currentPassword
+    };
+
+    if (passwordReauthSent) {
+      attributes.nonce = code;
+    }
+
+    button.disabled = true;
+    passwordFeedback("Updating your password…");
+
+    try {
+      const { error } = await db.auth.updateUser(attributes);
+
+      if (error) {
+        if (error.code === "reauthentication_needed") {
+          passwordReauthSent = false;
+          passwordReauthField.hidden = true;
+          sendPasswordReauth.hidden = false;
+
+          passwordFeedback(
+            "Additional verification is required. Select Send verification code.",
+            true
+          );
+        } else if (error.code === "reauthentication_not_valid") {
+          sendPasswordReauth.hidden = false;
+
+          passwordFeedback(
+            "The verification code is invalid or expired. Try again or request another code.",
+            true
+          );
+        } else {
+          passwordFeedback(
+            "Password change unsuccessful. Check your current password and try again.",
+            true
+          );
+        }
+        return;
+      }
+
+      passwordReauthSent = false;
+      passwordReauthField.hidden = true;
+      sendPasswordReauth.hidden = true;
+
+      passwordFeedback("Password updated successfully.");
+    } catch {
+      passwordFeedback(
+        "Unable to update your password. Please try again.",
+        true
+      );
+    } finally {
+      clearSensitiveFields();
+      button.disabled = false;
+    }
   });
 
   element("togglePassword").addEventListener("click", () => {
@@ -969,43 +1151,138 @@
     element("togglePassword").setAttribute("aria-label", `${show ? "Hide" : "Show"} password`);
   });
 
-  element("forgotPassword").addEventListener("click", async () => {
+  let recoveryEmailPending = false;
+  let recoveryEmailCooldownUntil = 0;
+
+  element("forgotPassword").addEventListener("click", async (event) => {
+    event.preventDefault();
+
+    if (recoveryEmailPending) return;
+
+    const remainingSeconds = Math.ceil(
+      (recoveryEmailCooldownUntil - Date.now()) / 1000
+    );
+
+    if (remainingSeconds > 0) {
+      showMessage(
+        `Please wait ${remainingSeconds} seconds before requesting another reset email.`,
+        true
+      );
+      return;
+    }
+
     const email = element("authEmail").value.trim();
+
     if (!email) {
-      showMessage("Enter your email address first, then select Forgot your password.", true);
+      showMessage(
+        "Enter your email address first, then select Forgot your password.",
+        true
+      );
       element("authEmail").focus();
       return;
     }
-    showMessage("Sending password reset email…");
-    const { error } = await db.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
-    });
-    showMessage(error ? error.message : "Password reset email sent. Check your inbox.", Boolean(error));
+
+    const button = element("forgotPassword");
+    recoveryEmailPending = true;
+    button.disabled = true;
+    showMessage("Requesting password reset instructions…");
+
+    try {
+      const { error } = await db.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password.html`,
+      });
+
+      if (error) throw error;
+
+      recoveryEmailCooldownUntil = Date.now() + 60_000;
+
+      showMessage(
+        "If an account exists for that email, password reset instructions will be sent."
+      );
+    } catch (error) {
+      console.error("Password recovery request failed.", error);
+      showMessage(
+        "Unable to process the request. Please wait and try again.",
+        true
+      );
+    } finally {
+      recoveryEmailPending = false;
+      button.disabled = false;
+    }
   });
 
   element("profileButton").addEventListener("click", () => accountDialog.showModal());
   element("closeAccount").addEventListener("click", () => accountDialog.close());
-  element("signOutButton").addEventListener("click", async () => {
+
+  // Clear credentials and temporary verification state whenever
+  // account settings closes, including via the Escape key.
+  accountDialog.addEventListener("close", () => {
     clearSensitiveFields();
-    await db.auth.signOut();
-    accountDialog.close();
-    loginDialog.showModal();
+
+    passwordReauthSent = false;
+    passwordReauthField.hidden = true;
+    sendPasswordReauth.hidden = true;
+    sendPasswordReauth.disabled = false;
+
+    passwordFeedback("");
+  });
+
+  element("signOutButton").addEventListener("click", async () => {
+    const button = element("signOutButton");
+    button.disabled = true;
+    clearSensitiveFields();
+
+    try {
+      const { error } = await db.auth.signOut({ scope: "local" });
+      if (error) throw error;
+
+      accountDialog.close();
+      if (!loginDialog.open) loginDialog.showModal();
+    } catch (error) {
+      console.error("Unable to sign out.", error);
+      const message =
+        "Please try again. Your session may still be active.";
+
+      if (typeof window.toast === "function") {
+        window.toast("Sign-out unsuccessful", message);
+      } else {
+        window.alert(`Sign-out unsuccessful. ${message}`);
+      }
+    } finally {
+      button.disabled = false;
+    }
   });
 
   db.auth.onAuthStateChange((_event, session) => {
     if (creatingAccount) return;
-    setTimeout(() => showAuthenticatedUser(session).catch(console.error), 0);
+
+    // Invalidate outstanding account-data requests immediately.
+    authGeneration++;
+    const eventSequence = ++authEventSequence;
+
+    // Supabase recommends deferring additional auth-related work.
+    setTimeout(() => {
+      if (eventSequence !== authEventSequence) return;
+      showAuthenticatedUser(session).catch(console.error);
+    }, 0);
   });
 
-  db.auth.getSession().then(({ data }) => showAuthenticatedUser(data.session)).catch(console.error);
+  const bootstrapGeneration = authGeneration;
+  db.auth.getSession()
+    .then(({ data }) => {
+      if (authGeneration !== bootstrapGeneration) return;
+      return showAuthenticatedUser(data.session);
+    })
+    .catch(console.error);
 
-  // When the Stage 0 OAuth server redirects back with ?connected=<providers>,
-  // confirm it and clean the URL. loadSourceConnections (run on session load)
-  // refreshes the "Connected" state from the source_connections table.
+  // The OAuth return parameter is not proof of a successful connection.
+  // Connection status is verified separately through source_connections.
   const connectedParam = new URLSearchParams(window.location.search).get("connected");
   if (connectedParam) {
-    const names = connectedParam.replace(/_/g, " ");
-    window.toast?.("Source connected", `${names} is now importing (read-only).`);
+    window.toast?.(
+      "Connection setup returned",
+      "Check Manage apps to confirm the connection. Automatic imports are not enabled."
+    );
     const cleanUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, document.title, cleanUrl);
   }

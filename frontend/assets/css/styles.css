@@ -959,6 +959,10 @@ dialog header {
 .form-grid .full {
   grid-column: 1/-1;
 }
+
+.form-grid [hidden] {
+  display: none !important;
+}
 .form-grid textarea {
   resize: vertical;
 }

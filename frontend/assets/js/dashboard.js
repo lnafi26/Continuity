@@ -258,8 +258,8 @@ let activity = [
   },
 ];
 const connectors = [
-  { id: "gmail", name: "Gmail", description: "Import selected messages, threads, and attachment metadata", icon: "M", connected: false },
-  { id: "google_calendar", name: "Google Calendar", description: "Import meetings, attendees, dates, and descriptions", icon: "31", connected: false },
+  { id: "gmail", name: "Gmail", description: "Read-only Gmail connection. Imports are not enabled yet.", icon: "M", connected: false },
+  { id: "google_calendar", name: "Google Calendar", description: "Read-only calendar connection. Imports are not enabled yet.", icon: "31", connected: false },
   { id: "slack", name: "Slack", description: "Planned after Gmail and Calendar", icon: "S", connected: false, comingSoon: true },
 ];
 const $ = (s, r = document) => r.querySelector(s),
@@ -426,9 +426,9 @@ window.setSourceConnections = (rows = []) => {
   if (prompt) prompt.hidden = connected.length > 0;
 
   if (connected.length) {
-    $("#syncTitle").textContent = "Automatic sync active";
-    $("#syncStatus").textContent = "Ready to scan connected sources";
-    $("#scanBtn").textContent = "Scan for updates";
+    $("#syncTitle").textContent = "Apps connected";
+    $("#syncStatus").textContent = "Automatic imports are not enabled";
+    $("#scanBtn").textContent = "Manage apps";
   } else {
     $("#syncTitle").textContent = "Waiting for a connection";
     $("#syncStatus").textContent = "No automatic imports yet";
@@ -1449,6 +1449,79 @@ window.updateCurrentUserUI = (displayName) => {
   }
 };
 
+// Remove the previous account's in-memory and rendered dashboard data.
+// Called by auth.js when a session ends or the account changes.
+window.clearAccountData = () => {
+  window.showOooRange = undefined;
+  window.markCaughtUp = undefined;
+  projects = [];
+  actions = [];
+  activity = [];
+  activeProject = null;
+  activeTab = "timeline";
+
+  allItems = [];
+  projectIndex = {};
+  catchupGroups = [];
+  catchupCheckpointMs = null;
+  catchupCheckpointToMs = null;
+
+  boardState = { in_progress: [], completed: [], backlog: [] };
+  boardProjectFilter = new Set();
+  boardDueFrom = null;
+  boardDueTo = null;
+  actionStatusFilter = new Set(["in_progress", "backlog"]);
+  _actionFilterProjectId = null;
+  _drawerContext = null;
+  _editDialogOnSave = null;
+
+  closeDrawer();
+
+  for (const id of ["sourcesDialog", "editItemDialog"]) {
+    const dialog = $("#" + id);
+    if (dialog?.open) dialog.close();
+  }
+
+  for (const id of [
+    "drawerBody", "projectDetailBody", "editItemFields",
+    "projectGrid", "toasts"
+  ]) {
+    $("#" + id)?.replaceChildren();
+  }
+
+  for (const id of ["oooFrom", "oooTo", "boardDueFrom", "boardDueTo"]) {
+    const input = $("#" + id);
+    if (input) input.value = "";
+  }
+
+  window.setTimelineData({});
+  window.setBoardData({});
+  window.setDashboardData({});
+  window.setCatchupData({});
+  window.setMetrics({});
+  window.setSourceConnections([]);
+  window.updateCurrentUserUI("You");
+
+  const defaults = {
+    profileName: "Account",
+    profileInitials: "--",
+    profileTitle: "Sign in required",
+    accountEmail: "",
+    profileDisplayName: "",
+    profileJobTitle: "",
+  };
+
+  for (const [id, value] of Object.entries(defaults)) {
+    const node = $("#" + id);
+    if (!node) continue;
+    if ("value" in node) node.value = value;
+    else node.textContent = value;
+  }
+
+  showProjectsGrid();
+  showView("overview");
+};
+
 // Stage 7: start empty so no fabricated content shows; auth.js fills the
 // dashboard from Supabase after sign-in via window.setDashboardData.
 projects = [];
@@ -1524,33 +1597,8 @@ $("#manageSources").onclick = $("#sourcesNav").onclick = () =>
 $$(".close-dialog").forEach(
   (b) => (b.onclick = () => b.closest("dialog").close()),
 );
-$("#scanBtn").onclick = async () => {
-  if (!connectors.some((connector) => connector.connected)) {
-    $("#sourcesDialog").showModal();
-    return;
-  }
-  const b = $("#syncBox");
-  b.classList.add("loading");
-  $("#scanBtn").disabled = true;
-  $("#scanBtn").textContent = "Scanning…";
-  try {
-    const result = await window.runPipelineScan?.();
-    $("#syncStatus").textContent = "Last scan just now";
-    if (!result) {
-      toast("Could not scan", "The local pipeline server (backend/auth/server.py) isn't reachable.");
-    } else if (result.ok) {
-      toast("Workspace scan complete", "All pipeline stages finished cleanly.");
-    } else {
-      const failed = (result.steps || []).filter((s) => !s.ok).map((s) => s.stage);
-      toast("Scan finished with errors", `Check the terminal running the pipeline server -- ${failed.join(", ") || "a stage"} reported a problem.`);
-    }
-  } catch (err) {
-    toast("Could not scan", err?.message || "The local pipeline server isn't reachable.");
-  } finally {
-    b.classList.remove("loading");
-    $("#scanBtn").disabled = false;
-    $("#scanBtn").textContent = "Scan for updates";
-  }
+$("#scanBtn").onclick = () => {
+  $("#sourcesDialog").showModal();
 };
 document.onkeydown = (e) => {
   if (e.key === "Escape") closeDrawer();

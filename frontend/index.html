@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Project memory dashboard prototype">
   <title>ThreadLinePMA | AI Project Manager Assistant</title>
-  <link rel="stylesheet" href="assets/css/styles.css?v=47">
+  <link rel="stylesheet" href="assets/css/styles.css?v=48">
 </head>
 <body class="auth-pending">
   <div class="app">
@@ -58,7 +58,7 @@
         </section>
 
         <section class="connect-prompt" id="connectPrompt" hidden>
-          <span>Connect Gmail or Google Calendar to start catching up automatically.</span>
+          <span>You can manage Gmail and Google Calendar connections here. Automatic imports aren't enabled yet.</span>
           <button class="button primary" id="connectPromptBtn">Connect apps</button>
         </section>
 
@@ -136,7 +136,7 @@
   </dialog>
 
   <dialog id="sourcesDialog">
-    <form method="dialog"><header><div><p class="eyebrow">AUTOMATIC IMPORTS</p><h2>Connect your workspace</h2></div><button value="cancel" class="icon">×</button></header><p class="help">Connect Gmail and Google Calendar with read-only permission. New messages and events can then be imported and grouped automatically. Upload remains available for files outside those services.</p><div id="connectorList"></div><footer><button value="done" class="button primary">Done</button></footer></form>
+    <form method="dialog"><header><div><p class="eyebrow">CONNECTED APPS</p><h2>Connect your workspace</h2></div><button value="cancel" class="icon">×</button></header><p class="help">Connect Gmail and Google Calendar with read-only permissions. Automatic imports are currently disabled, so connecting an account will not start importing data. You can still upload files separately.</p><div id="connectorList"></div><footer><button value="done" class="button primary">Done</button></footer></form>
   </dialog>
   
   <dialog id="loginDialog" aria-labelledby="loginTitle">
@@ -174,7 +174,7 @@
             </label>
             <label>
               <span>Password</span>
-              <div class="auth-input"><i>⌑</i><input id="authPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required><button id="togglePassword" type="button" aria-label="Show password">Show</button></div>
+              <div class="auth-input"><i>⌑</i><input id="authPassword" type="password" autocomplete="current-password" placeholder="Enter your password" required><button id="togglePassword" type="button" aria-label="Show password">Show</button></div>
             </label>
           </div>
 
@@ -218,8 +218,8 @@
             <div class="auth-fields">
               <label><span>Username</span><div class="auth-input"><i>◇</i><input id="signupName" autocomplete="name" placeholder="Your name" required></div></label>
               <label><span>Email address</span><div class="auth-input"><i>@</i><input id="signupEmail" type="email" autocomplete="email" placeholder="you@company.com" required></div></label>
-              <label><span>Password</span><div class="auth-input"><i>⌑</i><input id="signupPassword" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></div></label>
-              <label><span>Confirm password</span><div class="auth-input"><i>⌑</i><input id="signupPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Enter the password again" required></div></label>
+              <label><span>Password</span><div class="auth-input"><i>⌑</i><input id="signupPassword" type="password" autocomplete="new-password" minlength="15" placeholder="At least 15 characters" required></div></label>
+              <label><span>Confirm password</span><div class="auth-input"><i>⌑</i><input id="signupPasswordConfirm" type="password" autocomplete="new-password" minlength="15" placeholder="Enter the password again" required></div></label>
             </div>
             <p id="signupMessage" class="auth-message" aria-live="polite"></p>
             <button class="auth-submit" type="submit">Create account <span>→</span></button>
@@ -245,15 +245,70 @@
         <footer><button class="button primary">Save profile</button></footer>
       </form>
       <form id="passwordForm">
-        <div class="form-grid"><label class="full">New password<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label></div>
-        <footer><button class="button secondary">Update password</button><button class="link-btn" id="signOutButton" type="button">Sign out</button></footer>
+        <div class="form-grid">
+          <label class="full">
+            Current password
+            <input id="currentPassword"
+                  type="password"
+                  autocomplete="current-password"
+                  required>
+          </label>
+
+          <label class="full">
+            New password
+            <input id="newPassword"
+                  type="password"
+                  minlength="15"
+                  autocomplete="new-password"
+                  required>
+          </label>
+
+          <label class="full">
+            Confirm new password
+            <input id="confirmNewPassword"
+                  type="password"
+                  minlength="15"
+                  autocomplete="new-password"
+                  required>
+          </label>
+
+          <label class="full" id="passwordReauthField" hidden>
+            Email verification code
+            <input
+              id="passwordReauthCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              placeholder="Enter the code from your email">
+          </label>
+
+          <button
+            id="sendPasswordReauth"
+            class="button secondary"
+            type="button"
+            hidden>
+            Send verification code
+          </button>
+        </div>
+
+        <p id="passwordMessage" class="auth-message" aria-live="polite"></p>
+
+        <footer>
+          <button class="button secondary" type="submit">
+            Update password
+          </button>
+          <button class="link-btn" id="signOutButton"
+                  type="button">
+            Sign out
+          </button>
+        </footer>
       </form>
     </div>
   </dialog>
   <div class="toasts" id="toasts" aria-live="polite"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="config/supabase-config.js"></script>
   <script src="assets/js/dashboard.js?v=47"></script>
-  <script src="assets/js/auth.js?v=47"></script>
+  <script src="assets/js/auth.js?v=51"></script>
 </body>
 </html>

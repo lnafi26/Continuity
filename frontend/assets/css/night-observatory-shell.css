@@ -1,0 +1,142 @@
+/*
+ * Project Continuity — Night Observatory Shell
+ * C2.1a: Scoped application layout.
+ * Not yet imported into the existing application.
+ */
+
+.continuity-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: var(--no-rail-width) minmax(0, 1fr);
+  background: var(--no-canvas);
+  color: var(--no-text);
+  font-family: var(--no-font-body);
+}
+
+.continuity-shell *,
+.continuity-shell *::before,
+.continuity-shell *::after {
+  box-sizing: border-box;
+}
+
+.continuity-shell .no-rail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100vh;
+  height: 100dvh;
+  padding: 24px 14px;
+  background: var(--no-night);
+  border-right: 1px solid var(--no-border);
+}
+
+.continuity-shell .no-brand {
+  padding: 4px 12px;
+  color: var(--no-text);
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.continuity-shell .no-navigation {
+  display: grid;
+  gap: 5px;
+}
+
+.continuity-shell .no-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--no-radius-small);
+  color: var(--no-secondary);
+  text-decoration: none;
+}
+
+.continuity-shell .no-nav-item:hover,
+.continuity-shell .no-nav-item[aria-current="page"] {
+  background: var(--no-elevated);
+  color: var(--no-text);
+}
+
+.continuity-shell .no-workspace {
+  min-width: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.continuity-shell .no-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--no-border);
+}
+
+.continuity-shell .no-content {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 28px;
+}
+
+.continuity-shell .no-panel {
+  background: var(--no-raised);
+  border: 1px solid var(--no-border);
+  border-radius: var(--no-radius-panel);
+  padding: 22px;
+}
+
+.continuity-shell :focus-visible {
+  outline: 3px solid var(--no-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .continuity-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .continuity-shell .no-rail {
+    position: relative;
+    height: auto;
+    gap: 12px;
+    padding: 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--no-border);
+  }
+
+  .continuity-shell .no-navigation {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .continuity-shell .no-nav-item {
+    flex: 0 0 auto;
+  }
+
+  .continuity-shell .no-topbar {
+    padding: 12px 18px;
+  }
+
+  .continuity-shell .no-content {
+    padding: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .continuity-shell *,
+  .continuity-shell *::before,
+  .continuity-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

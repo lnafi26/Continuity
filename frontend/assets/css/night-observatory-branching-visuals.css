@@ -1,0 +1,130 @@
+/* Synthetic evidence-validated junction annotations. */
+
+.continuity-shell .no-branch-tags {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  width: max-content;
+  max-width: 145px;
+  transform: translate(24px, -50%);
+  pointer-events: none;
+}
+
+.continuity-shell .no-branch-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid var(--no-border);
+  border-radius: 6px;
+  background: var(--no-raised);
+  color: var(--no-text);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.continuity-shell .no-branch-tag[data-kind="divergence"] {
+  border-color: var(--no-information);
+  color: var(--no-information);
+}
+
+.continuity-shell .no-branch-tag[data-kind="convergence"] {
+  border-color: var(--no-accent);
+  color: var(--no-accent);
+}
+
+.continuity-shell .no-branch-tag[data-kind="shared-milestone"] {
+  border-color: var(--no-attested);
+  color: var(--no-attested);
+}
+
+.continuity-shell .no-branch-mini-tag {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  transform: translate(11px, -125%);
+  padding: 2px 4px;
+  border: 1px solid var(--no-attested);
+  border-radius: 4px;
+  background: var(--no-raised);
+  color: var(--no-attested);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+
+/* Step 5B: independently selectable, validated junctions. */
+.continuity-shell .no-branch-tag {
+  appearance: none;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.continuity-shell .no-branch-tag:focus-visible,
+.continuity-shell .no-branch-mini-button:focus-visible {
+  outline: 2px solid #e7f3ff;
+  outline-offset: 3px;
+}
+.continuity-shell .no-branch-tag[aria-pressed="true"] {
+  background: #1b3249;
+  box-shadow: 0 0 0 3px rgb(150 204 241 / .25),
+              0 0 14px rgb(150 204 241 / .55);
+}
+.continuity-shell .no-branch-mini-tag {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.continuity-shell .no-branch-mini-button {
+  appearance: none;
+  min-width: 17px;
+  min-height: 17px;
+  padding: 2px 4px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: #172739;
+  color: #a8dfc9;
+  font: 700 10px/1 sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.continuity-shell .no-branch-mini-button[data-kind="divergence"] {
+  color: #a4c4ff;
+}
+.continuity-shell .no-branch-mini-button[data-kind="convergence"] {
+  color: #83cddd;
+}
+.continuity-shell .no-branch-mini-button[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px rgb(150 204 241 / .22),
+              0 0 12px currentColor;
+}
+/* Keep the pre-existing event and relationship DOM intact. */
+.continuity-shell #noEventInspector.no-junction-inspecting
+  > :not(.no-junction-inspector-view) {
+  display: none !important;
+}
+.continuity-shell .no-junction-inspector-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.continuity-shell .no-junction-inspector-view h3,
+.continuity-shell .no-junction-inspector-view h4 { margin: 0; }
+.continuity-shell .no-junction-inspector-view p { margin: 0; }
+.continuity-shell .no-junction-inspector-section ul {
+  margin: 6px 0 0;
+  padding-left: 19px;
+}
+.continuity-shell .no-junction-inspector-notice {
+  color: #a8dfc9;
+  font-size: 12px;
+}

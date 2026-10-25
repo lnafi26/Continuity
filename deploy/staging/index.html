@@ -1,32 +1,439 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <meta name="robots" content="noindex, nofollow">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Continuity — Staging</title>
+  <title>Continuity — Night Observatory Preview</title>
+  <link rel="stylesheet" href="assets/css/night-observatory-tokens.css">
+  <link rel="stylesheet" href="assets/css/night-observatory-shell.css">
+  <link rel="stylesheet" href="assets/css/night-observatory-catchup.css">
+  <link rel="stylesheet" href="assets/css/night-observatory-events.css">
+  <link rel="stylesheet" href="assets/css/night-observatory-canvas.css">\n  <link rel="stylesheet" href="assets/css/night-observatory-viewport.css">
   <style>
-    :root { color-scheme: light; }
-    body { min-height: 100vh; box-sizing: border-box; margin: 0; display: grid;
-      place-items: center; padding: 2rem; font: 16px/1.6 system-ui, sans-serif;
-      color: #202321; background: #f7f6f3; }
-    main { max-width: 38rem; width: 100%; border-top: 3px solid #375547; padding-top: 1.3rem; }
-    .kicker { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
-      font-weight: 700; color: #4a6054; }
-    h1 { font-size: clamp(2.5rem, 8vw, 4rem); font-weight: 550; letter-spacing: -.05em;
-      line-height: 1.05; margin: .65rem 0 1.3rem; }
-    p { max-width: 35rem; }
-    footer { border-top: 1px solid #d7d7d1; margin-top: 2.5rem; padding-top: 1rem;
-      font-size: .85rem; color: #5b645e; }
+    body { margin: 0; background: #0c1320; }
+
+    .no-brand small {
+      display: block;
+      margin-top: 7px;
+      color: var(--no-secondary);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    button.no-nav-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    button.no-nav-item[aria-current="page"] {
+      background: var(--no-elevated);
+      color: var(--no-text);
+      box-shadow: inset 3px 0 var(--no-accent);
+    }
+
+    .no-preview-label {
+      color: var(--no-information);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .no-preview-heading {
+      margin: 12px 0;
+      font-size: clamp(30px, 3vw, 44px);
+      font-weight: 650;
+      letter-spacing: -.045em;
+    }
+
+    .no-preview-description {
+      max-width: 650px;
+      color: var(--no-secondary);
+      line-height: 1.7;
+    }
+
+    .no-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .no-preview-card h2 {
+      margin: 10px 0;
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .no-preview-card p {
+      margin-bottom: 0;
+      color: var(--no-secondary);
+      line-height: 1.6;
+    }
+
+    .no-preview-view[hidden] { display: none; }
+
+    @media (max-width: 760px) {
+      .no-preview-grid { grid-template-columns: 1fr; }
+      button.no-nav-item { width: auto; white-space: nowrap; }
+    }
   </style>
+  <link rel="stylesheet" href="assets/css/night-observatory-navigator.css">
+  <link rel="stylesheet" href="assets/css/night-observatory-junctions.css">
+  <link rel="stylesheet" href="assets/css/night-observatory-branching-visuals.css">
 </head>
 <body>
-  <main>
-    <p class="kicker">Continuity / Staging</p>
-    <h1>In development.</h1>
-    <p>This environment is reserved for testing Continuity before release.
-      The application and live account services are intentionally not connected here.</p>
-    <footer>Staging holding page — no sign-in, data access, or background processing.</footer>
-  </main>
+  <div class="continuity-shell">
+    <aside class="no-rail">
+      <div class="no-brand">
+        ◈ CONTINUITY
+        <small>Night Observatory</small>
+      </div>
+
+      <nav class="no-navigation" aria-label="Main navigation">
+        <button class="no-nav-item" data-view="catchup"
+                aria-current="page">◷ &nbsp; Catch-up</button>
+        <button class="no-nav-item" data-view="atlas">◇ &nbsp; Continuities</button>
+        <button class="no-nav-item" data-view="investigations">⌕ &nbsp; Investigations</button>
+        <button class="no-nav-item" data-view="review">☷ &nbsp; Review Inbox</button>
+        <button class="no-nav-item" data-view="connections">↗ &nbsp; Connections</button>
+        <button class="no-nav-item" data-view="account">◎ &nbsp; Account</button>
+      </nav>
+    </aside>
+
+    <div class="no-workspace">
+      <header class="no-topbar">
+        <strong>Continuity Workspace</strong>
+        <span class="no-preview-label">Local design preview</span>
+      </header>
+
+      <main class="no-content" id="mainContent">
+        <section class="no-preview-view" id="view-catchup">
+          <div class="no-catchup-header">
+            <div>
+              <span class="no-preview-label">Your historical overview</span>
+              <h1 class="no-preview-heading" tabindex="-1">Catch-up</h1>
+              <p class="no-preview-description">
+                Understand what changed, what needs your attention,
+                and what Continuity discovered since your last visit.
+              </p>
+            </div>
+            <button class="no-primary-action" id="noGoToContinuities"
+                    type="button">Go to Continuities →</button>
+          </div>
+
+          <div class="no-demo-notice" role="note">
+            Design demonstration: all updates below are fictional examples.
+            No real sources have been connected or analyzed.
+          </div>
+
+          <div class="no-catchup-toolbar" id="noCatchupFilters"
+               role="group" aria-label="Filter Catch-up updates">
+            <button class="no-filter" data-filter="all"
+                    aria-pressed="true">All updates</button>
+            <button class="no-filter" data-filter="development"
+                    aria-pressed="false">Developments</button>
+            <button class="no-filter" data-filter="review"
+                    aria-pressed="false">Needs review</button>
+            <button class="no-filter" data-filter="attention"
+                    aria-pressed="false">Source attention</button>
+            <button class="no-filter" data-filter="recovered"
+                    aria-pressed="false">Recovered history</button>
+          </div>
+
+          <p id="noCatchupCount" class="no-update-meta"
+             aria-live="polite">Showing 4 updates</p>
+
+          <div class="no-update-list" id="noUpdateList">
+
+            <article class="no-update" data-kind="development">
+              <div>
+                <span class="no-update-category">
+                  Historical Development
+                </span>
+                <h2>Architecture decision documented</h2>
+                <button class="no-event-open" type="button" data-no-event="architecture">Inspect historical event →</button>
+                <p>
+                  The demonstration project recorded a decision to separate
+                  persistent memory from its inference infrastructure.
+                  The original decision and its evidence remain distinct.
+                </p>
+                <div class="no-update-meta">
+                  Example Continuity · Event: October 12, 2026
+                </div>
+              </div>
+              <span class="no-update-state">New</span>
+            </article>
+
+            <article class="no-update" data-kind="review">
+              <div>
+                <span class="no-update-category">
+                  Needs Your Review
+                </span>
+                <h2>Source association requires confirmation</h2>
+                <button class="no-event-open" type="button" data-no-destination="review">Open Review Inbox →</button>
+                <p>
+                  A demonstration document may relate to two Continuities.
+                  Review is required before assigning it to either history.
+                </p>
+                <div class="no-update-meta">
+                  Example source · Association pending
+                </div>
+              </div>
+              <span class="no-update-state">Needs review</span>
+            </article>
+
+            <article class="no-update" data-kind="attention">
+              <div>
+                <span class="no-update-category">
+                  Source Attention Needed
+                </span>
+                <h2>Example source synchronization interrupted</h2>
+                <button class="no-event-open" type="button" data-no-destination="connections">Open Connections →</button>
+                <p>
+                  A simulated connection stopped returning observations.
+                  The missing interval must not be treated as inactivity.
+                </p>
+                <div class="no-update-meta">
+                  Example connection · Coverage uncertain
+                </div>
+              </div>
+              <span class="no-update-state">Attention</span>
+            </article>
+
+            <article class="no-update" data-kind="recovered">
+              <div>
+                <span class="no-update-category">
+                  Recovered History
+                </span>
+                <h2>Earlier milestone discovered</h2>
+                <button class="no-event-open" type="button" data-no-event="recovered">Inspect recovered event →</button>
+                <p>
+                  A fictional source record documents an earlier milestone.
+                  Its historical date remains separate from the date
+                  it was discovered.
+                </p>
+                <div class="no-update-meta">
+                  Event: September 18, 2026 ·
+                  Discovered: October 20, 2026
+                </div>
+              </div>
+              <span class="no-update-state">Recovered</span>
+            </article>
+
+          </div>
+        </section>
+
+        <section class="no-preview-view" id="view-atlas" hidden>
+          <span class="no-preview-label">Spatial workspace</span>
+          <h1 class="no-preview-heading" tabindex="-1">Continuity Atlas</h1>
+          <button type="button" class="no-event-open"
+                  data-no-event="architecture">
+            Open demonstration Continuity →
+          </button>
+          <div class="no-panel">
+            <p class="no-preview-description">
+              The 2.5D Atlas and individual Branching Canvases
+              will be integrated in a subsequent implementation step.
+            </p>
+          </div>
+        </section>
+
+<section class="no-preview-view" id="view-continuity" hidden>
+          <span class="no-preview-label">Synthetic historical workspace</span>
+          <h1 class="no-preview-heading" tabindex="-1">
+            Example Continuity
+          </h1>
+          <p class="no-preview-description">
+            A temporary historical event viewer. The spatial Branching
+            Canvas will replace this demonstration layout later.
+          </p>
+
+          <button class="no-event-open" id="noBackToAtlas"
+                  type="button">← Back to Atlas</button>
+          <button class="no-event-open" id="noBackToCatchup"
+                  type="button" style="margin-left:20px">
+            Return to Catch-up
+          </button>
+
+
+          <section class="no-panel no-canvas-region"
+                   aria-labelledby="noCanvasHeading">
+            <div class="no-canvas-header">
+              <div>
+                <span class="no-preview-label">
+                  Historical visualization
+                </span>
+                <h2 id="noCanvasHeading">Timeline</h2>
+              </div>
+              <div class="no-canvas-header-actions">
+                <span class="no-canvas-mode">Explore Mode</span>
+                <div class="no-viewport-controls"
+                     role="group" aria-label="Timeline camera controls">
+                  <button type="button" id="noZoomOut"
+                          aria-label="Zoom out">−</button>
+                  <output id="noZoomLevel" aria-live="polite">100%</output>
+                  <button type="button" id="noZoomIn"
+                          aria-label="Zoom in">+</button>
+                  <button type="button" id="noZoomReset"
+                          aria-label="Reset Timeline view">Reset</button>
+                </div>
+              </div>
+            </div>
+
+            <p class="no-canvas-description">
+              Select an event to inspect its history.
+              All records in this preview are fictional.
+            </p>
+
+            <div class="no-canvas-scroll"
+                 id="noCanvasViewport"
+                 role="region"
+                 tabindex="0"
+                 aria-label="Historical Timeline. Use arrow keys to scroll.">
+              <div class="no-canvas-stage" id="noCanvasStage">
+                <p class="no-canvas-note">
+                  Loading demonstration history...
+                </p>
+              </div>
+            </div>
+
+            <div class="no-canvas-footer">
+              <span>◇ Decision</span>
+              <span>⬡ Milestone</span>
+              <span>Primary historical strand</span>
+            </div>
+
+            <p class="no-canvas-note">
+              No speculative branches are displayed.
+              The alternative event list remains available below.
+            </p>
+          </section>
+
+          <div class="no-timeline-layout">
+            <section class="no-panel no-timeline-list"
+                     aria-label="Historical events">
+              <h2>Historical events</h2>
+
+              <button class="no-timeline-event"
+                      data-no-event="architecture"
+                      aria-pressed="false" type="button">
+                <strong>Architecture decision documented</strong>
+                <small>October 12, 2026 · Decision</small>
+              </button>
+
+              <button class="no-timeline-event"
+                      data-no-event="recovered"
+                      aria-pressed="false" type="button">
+                <strong>Earlier milestone discovered</strong>
+                <small>September 18, 2026 · Recovered History</small>
+              </button>
+            </section>
+
+            <article class="no-panel no-event-inspector"
+                     id="noEventInspector"
+                     tabindex="-1" aria-live="polite">
+              <span class="no-preview-label" id="noInspectorType">
+                Historical event
+              </span>
+              <h2 id="noInspectorTitle">Select an event</h2>
+              <p id="noInspectorDate"></p>
+              <p id="noInspectorBody">
+                Choose a historical event to inspect its details.
+              </p>
+
+              <div class="no-event-evidence">
+                <h3>Provenance</h3>
+                <p id="noInspectorEvidence">
+                  Demonstration records only.
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+                <section class="no-preview-view" id="view-investigations" hidden>
+          <span class="no-preview-label">Evidence and provenance</span>
+          <h1 class="no-preview-heading" tabindex="-1">Investigations</h1>
+          <div class="no-panel">Investigation library — interface pending.</div>
+        </section>
+
+        <section class="no-preview-view" id="view-review" hidden>
+          <span class="no-preview-label">Human oversight</span>
+          <h1 class="no-preview-heading" tabindex="-1">Review Inbox</h1>
+          <div class="no-panel">Routing review interface pending.</div>
+        </section>
+
+        <section class="no-preview-view" id="view-connections" hidden>
+          <span class="no-preview-label">Permissions and sources</span>
+          <h1 class="no-preview-heading" tabindex="-1">Connections</h1>
+          <div class="no-panel">Connections Manager interface pending.</div>
+        </section>
+
+        <section class="no-preview-view" id="view-account" hidden>
+          <span class="no-preview-label">Profile and security</span>
+          <h1 class="no-preview-heading" tabindex="-1">Account</h1>
+          <div class="no-panel">
+            Account settings will reuse the existing C1 security protections.
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const buttons = [...document.querySelectorAll(
+        '.no-navigation [data-view]'
+      )];
+      const views = [...document.querySelectorAll('.no-preview-view')];
+
+      for (const button of buttons) {
+        button.addEventListener('click', () => {
+          const target = `view-${button.dataset.view}`;
+
+          for (const view of views) {
+            view.hidden = view.id !== target;
+          }
+
+          for (const navButton of buttons) {
+            if (navButton === button) {
+              navButton.setAttribute('aria-current', 'page');
+            } else {
+              navButton.removeAttribute('aria-current');
+            }
+          }
+
+          const heading = document.querySelector(
+            `#${target} h1`
+          );
+          heading?.focus({ preventScroll: true });
+        });
+      }
+    })();
+  </script>
+  <script src="assets/js/night-observatory-catchup.js" defer></script>
+  <script src="assets/js/night-observatory-timeline-data.js" defer></script>
+  <script src="assets/js/night-observatory-branching-demo.js" defer></script>
+  <script src="assets/js/night-observatory-multi-demo.js" defer></script>
+  <script src="assets/js/night-observatory-timeline-layout.js" defer></script>
+  <script src="assets/js/night-observatory-timeline-renderer.js" defer></script>
+  <script src="assets/js/night-observatory-relationships.js" defer></script>
+  <script src="assets/js/night-observatory-junction-semantics.js" defer></script>
+  <script src="assets/js/night-observatory-junction-inspection.js" defer></script>
+  <script src="assets/js/night-observatory-junction-inspector.js" defer></script>
+  <script src="assets/js/night-observatory-junctions.js" defer></script>
+  <script src="assets/js/night-observatory-branching-visuals.js" defer></script>
+  <script src="assets/js/night-observatory-events.js" defer></script>\n  <script src="assets/js/night-observatory-viewport.js" defer></script>
+  <script src="assets/js/night-observatory-navigator.js" defer></script>
+  <script src="assets/js/night-observatory-camera-focus.js" defer></script>
+  <script src="assets/js/night-observatory-selection.js" defer></script>
 </body>
 </html>
