@@ -1,0 +1,57 @@
+name: Validate Continuity Production Release
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  release-validation:
+    name: Validate production release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce reviewed staging-to-main promotion
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          TARGET_REPO: ${{ github.repository }}
+        run: |
+          test "$HEAD_BRANCH" = "staging"
+          test "$HEAD_REPO" = "$TARGET_REPO"
+      - name: Checkout proposed merge commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Night Observatory JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in frontend/assets/js/night-observatory-*.js; do
+            node --check "$file"
+          done
+      - name: Run historical timeline regression tests
+        run: node --test frontend/tests/night-observatory-*.test.cjs
+      - name: Run production release safety tests
+        run: python3 -m unittest discover -s scripts/tests -p 'test_production_site.py' -v
+      - name: Build and inspect production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build_production_site.py --output dist/production
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          mode = json.loads(Path('deploy/production-release.json').read_text())['mode']
+          expected = 1 if mode == 'holding' else 28
+          actual = len([p for p in Path('dist/production').rglob('*') if p.is_file()])
+          assert actual == expected, (mode, expected, actual)
+          print(f'Production artifact validated: {mode} ({actual} files)')
+          PY
