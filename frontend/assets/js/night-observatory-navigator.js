@@ -103,20 +103,95 @@
       }));
     }
 
-    for (const node of strand.nodes) {
-      const dot = svgElement("circle", {
-        cx: node.x,
-        cy: node.y,
-        r: 7,
-        fill: color
+
+  }
+
+  // Only validated historical relationships enter the map.
+  let relationshipMaps = [];
+
+  try {
+    const validator = root.ContinuityHistoricalRelationships;
+    const connector = root.ContinuityJunctionGeometry;
+
+    if (validator && connector) {
+      relationshipMaps = api.relationshipOverlays(
+        layout,
+        validator.classify(model).drawable,
+        connector.connectorGeometry
+      );
+    }
+  } catch (error) {
+    console.error("Navigator relationship validation failed:", error);
+  }
+
+  for (const relation of relationshipMaps) {
+    svg.append(svgElement("path", {
+      d: relation.path,
+      fill: "none",
+      stroke: "#a8dfc9",
+      "stroke-width": 2,
+      "vector-effect": "non-scaling-stroke",
+      "stroke-linecap": "round"
+    }));
+  }
+
+  if (relationshipMaps.length) {
+    count.textContent +=
+      ` · ${relationshipMaps.length} documented connection` +
+      (relationshipMaps.length === 1 ? "" : "s");
+  }
+
+  // Each historical event is an interactive Navigator object.
+  // Shape represents event role; color represents workstream.
+  const eventRecords = new Map(
+    model.events.map(event => [event.id, event])
+  );
+
+  const eventMarkers = layout.strands.flatMap(
+    (strand, lane) => strand.nodes.map(node => {
+      const event = eventRecords.get(node.eventId);
+      const spec = api.eventMarkerSpec(
+        event?.role, lane, colors
+      );
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "no-navigator-event";
+      button.dataset.noEvent = node.eventId;
+      button.dataset.shape = spec.shape;
+      button.setAttribute("aria-pressed", "false");
+
+      button.setAttribute(
+        "aria-label",
+        `Inspect ${event?.role || "historical"}: ` +
+        `${event?.title || node.eventId}`
+      );
+
+      button.style.setProperty(
+        "--no-marker-color", spec.color
+      );
+
+      button.style.left =
+        `${node.x / layout.width * 100}%`;
+      button.style.top =
+        `${node.y / layout.height * 100}%`;
+
+      button.addEventListener("click", () => {
+        const mainNode = Array.from(
+          stage.querySelectorAll(
+            ".no-canvas-node[data-no-event]"
+          )
+        ).find(item =>
+          item.dataset.noEvent === node.eventId
+        );
+
+        // Delegate through the existing selection system.
+        mainNode?.click();
       });
 
-      const tooltip = svgElement("title");
-      tooltip.textContent = node.eventId;
-      dot.append(tooltip);
-      svg.append(dot);
-    }
-  }
+      return button;
+    })
+  );
 
   const windowMarker = document.createElement("div");
   windowMarker.className = "no-navigator-window";
@@ -136,7 +211,41 @@
   selectedMarker.hidden = true;
   selectedMarker.setAttribute("aria-hidden", "true");
 
-  map.append(svg, windowMarker, selectedMarker, hitTarget);
+  const relationshipButtons = relationshipMaps.map(relation => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "no-navigator-relationship";
+    button.dataset.noRelationship = relation.id;
+    button.textContent = "↗";
+    button.setAttribute(
+      "aria-label",
+      `Inspect ${relation.kind} relationship`
+    );
+
+    button.style.left =
+      `${relation.midpoint.x / layout.width * 100}%`;
+    button.style.top =
+      `${relation.midpoint.y / layout.height * 100}%`;
+
+    button.addEventListener("click", () => {
+      const mainMarker = Array.from(
+        stage.querySelectorAll(
+          ".no-junction-marker[data-no-relationship]"
+        )
+      ).find(item =>
+        item.dataset.noRelationship === relation.id
+      );
+
+      mainMarker?.click();
+    });
+
+    return button;
+  });
+
+  map.append(
+    svg, windowMarker, selectedMarker,
+    hitTarget, ...eventMarkers, ...relationshipButtons
+  );
 
   const hint = document.createElement("p");
   hint.className = "no-navigator-hint";
@@ -160,18 +269,39 @@
   );
 
   function updateSelectedMarker() {
-    const selected = stage.querySelector(
+    const activeLink = stage.querySelector(
+      '.no-junction-marker[aria-pressed="true"]'
+    );
+
+    const relationship = activeLink
+      ? relationshipMaps.find(item =>
+          item.id === activeLink.dataset.noRelationship
+        )
+      : null;
+
+    const selectedEvent = stage.querySelector(
       '.no-canvas-node[aria-pressed="true"]'
     );
 
-    const position = selected
-      ? eventPositions.get(selected.dataset.noEvent)
-      : null;
+    const selectedId = selectedEvent?.dataset.noEvent;
+
+    eventMarkers.forEach(button => {
+      const active = button.dataset.noEvent === selectedId;
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    const position = relationship?.midpoint ||
+      (selectedEvent
+        ? eventPositions.get(selectedEvent.dataset.noEvent)
+        : null);
 
     if (!position) {
       selectedMarker.hidden = true;
       return;
     }
+
+    selectedMarker.dataset.kind =
+      relationship ? "relationship" : "event";
 
     selectedMarker.style.left =
       `${position.x / layout.width * 100}%`;
@@ -365,8 +495,62 @@
     };
   }
 
+  function relationshipOverlays(layout, relations, geometry) {
+    if (!Array.isArray(relations) || typeof geometry !== "function") {
+      throw new Error("Relationship geometry inputs missing.");
+    }
+
+    const positions = new Map();
+
+    for (const strand of layout.strands) {
+      for (const node of strand.nodes) {
+        positions.set(
+          `${strand.id}:${node.eventId}`, node
+        );
+      }
+    }
+
+    return relations.flatMap(relation => {
+      const from = positions.get(
+        `${relation.from.strandId}:${relation.from.eventId}`
+      );
+      const to = positions.get(
+        `${relation.to.strandId}:${relation.to.eventId}`
+      );
+
+      if (!from || !to) return [];
+
+      const shape = geometry(from, to);
+
+      return [{
+        id: relation.id,
+        kind: relation.kind,
+        path: shape.path,
+        midpoint: shape.midpoint
+      }];
+    });
+  }
+
+  function eventMarkerSpec(role, laneIndex, palette) {
+    if (
+      !Array.isArray(palette) ||
+      !palette.length ||
+      !Number.isInteger(laneIndex) ||
+      laneIndex < 0
+    ) {
+      throw new Error("Invalid event marker configuration.");
+    }
+
+    return {
+      shape: role === "decision" ? "diamond" : "circle",
+      color: palette[laneIndex % palette.length]
+    };
+  }
+
   return Object.freeze({
     visibleWindow,
-    mapPoint
+    mapPoint,
+    relationshipOverlays,
+    eventMarkerSpec
   });
 });

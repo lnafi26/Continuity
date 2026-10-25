@@ -65,9 +65,53 @@
     };
   }
 
+  function buildJunction(multi) {
+    if (!multi || multi.dataset !== "synthetic") {
+      throw new Error("A synthetic multi-strand model is required.");
+    }
+
+    return {
+      ...multi,
+      continuity: {
+        ...multi.continuity,
+        title: "Example Continuity — Evidence-linked History"
+      },
+      evidence: [
+        ...(multi.evidence || []),
+        {
+          id: "synthetic-proof-1",
+          sourceItemId: "fictional-source-record-1",
+          reviewState: "accepted",
+          relationshipIds: ["synthetic-handoff-1"]
+        }
+      ],
+      relationships: [
+        ...(multi.relationships || []),
+        {
+          id: "synthetic-handoff-1",
+          kind: "handoff",
+          state: "documented",
+          from: {
+            strandId: "primary",
+            eventId: "recovered"
+          },
+          to: {
+            strandId: "evidence",
+            eventId: "evidence-start"
+          },
+          statement:
+            "In this fictional example, an earlier project " +
+            "milestone was handed off to the evidence-processing " +
+            "workstream for subsequent review.",
+          evidenceIds: ["synthetic-proof-1"]
+        }
+      ]
+    };
+  }
+
   // Permit deterministic Node tests without accessing browser APIs.
   if (typeof module === "object" && module.exports) {
-    module.exports = { buildMulti };
+    module.exports = { buildMulti, buildJunction };
   }
 
   if (typeof window === "undefined") return;
@@ -76,12 +120,16 @@
   if (!base || base.dataset !== "synthetic") return;
 
   const params = new URLSearchParams(window.location.search);
-  const mode = params.get("timeline") === "multi"
-    ? "multi"
+  const requestedMode = params.get("timeline");
+  const mode = ["single", "multi", "junction"].includes(requestedMode)
+    ? requestedMode
     : "single";
 
-  if (mode === "multi") {
-    window.ContinuityTimelineData = buildMulti(base);
+  if (mode !== "single") {
+    const multi = buildMulti(base);
+    window.ContinuityTimelineData = mode === "junction"
+      ? buildJunction(multi)
+      : multi;
   }
 
   const model = window.ContinuityTimelineData;
@@ -103,7 +151,8 @@
 
   for (const [value, label] of [
     ["single", "Single strand"],
-    ["multi", "Two workstreams"]
+    ["multi", "Two workstreams"],
+    ["junction", "Evidence-linked"]
   ]) {
     const link = document.createElement("a");
     const url = new URL(window.location.href);
@@ -202,8 +251,10 @@
   );
 
   if (legend.length >= 3) {
-    legend[2].textContent = mode === "multi"
-      ? "Two synthetic historical workstreams"
-      : "Primary historical strand";
+    legend[2].textContent = mode === "junction"
+      ? "Synthetic documented handoff"
+      : mode === "multi"
+        ? "Two synthetic historical workstreams"
+        : "Primary historical strand";
   }
 })();

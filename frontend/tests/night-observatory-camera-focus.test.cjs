@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { centerDelta, eventAnchor, gutterSize } = require(
+const { centerDelta, eventAnchor, gutterSize, centerOfAnchors } = require(
   "../assets/js/night-observatory-camera-focus.js"
 );
 
@@ -72,6 +72,50 @@ const rightCenter =
 
 assert.equal(leftCenter, 0);
 assert.equal(rightCenter, maxScroll);
+
+// Relationship markers use the same stage-percentage
+// positioning system as historical event nodes.
+const linkMarker = {
+  style: { left: "56.25%", top: "44%" }
+};
+
+assert.deepEqual(
+  eventAnchor(linkMarker, {
+    left: 175,
+    top: 200,
+    width: 800,
+    height: 500
+  }),
+  { x: 625, y: 420 }
+);
+
+console.log("Relationship camera anchor checks passed.");
+// Reset should frame the historical events as a group.
+const historyCenter = centerOfAnchors([
+  { x: 180, y: 150 },
+  { x: 800, y: 150 },
+  { x: 250, y: 325 },
+  { x: 600, y: 325 }
+]);
+
+assert.deepEqual(
+  historyCenter,
+  { x: 490, y: 237.5 }
+);
+
+// With no historical events, Reset has no camera target.
+assert.equal(centerOfAnchors([]), null);
+
+// Invalid coordinates cannot affect framing.
+assert.deepEqual(
+  centerOfAnchors([
+    { x: 300, y: 200 },
+    { x: NaN, y: 100 }
+  ]),
+  { x: 300, y: 200 }
+);
+
+console.log("Historical Reset framing checks passed.");
 
 console.log("Event-focused camera geometry checks passed.");
 console.log("Camera gutter boundary checks passed.");

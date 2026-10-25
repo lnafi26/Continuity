@@ -123,13 +123,7 @@
   root.addEventListener("resize", scheduleGutters);
   scheduleGutters();
 
-  function focusEvent(eventId) {
-    const node = Array.from(
-      stage.querySelectorAll(
-        ".no-canvas-node[data-no-event]"
-      )
-    ).find(item => item.dataset.noEvent === eventId);
-
+  function centerNode(node) {
     if (!node || view.hidden) return;
 
     const anchor = api.eventAnchor(
@@ -157,9 +151,81 @@
     });
   }
 
+  function focusEvent(eventId) {
+    const node = Array.from(
+      stage.querySelectorAll(
+        ".no-canvas-node[data-no-event]"
+      )
+    ).find(item => item.dataset.noEvent === eventId);
+
+    centerNode(node);
+  }
+
+  // Reset frames the documented historical nodes, not
+  // the top-left scroll origin introduced by camera gutters.
+  function centerHistoricalOverview() {
+    if (view.hidden) return;
+
+    const stageRect = stage.getBoundingClientRect();
+
+    const nodes = Array.from(
+      stage.querySelectorAll(
+        ".no-canvas-node[data-no-event]"
+      )
+    );
+
+    const anchors = nodes.map(node =>
+      api.eventAnchor(node, stageRect)
+    );
+
+    const center = api.centerOfAnchors(anchors);
+
+    if (!center) return;
+
+    const delta = api.centerDelta(
+      scroller.getBoundingClientRect(),
+      center
+    );
+
+    // Scroll only the Canvas viewport, not the document.
+    scroller.scrollLeft += delta.x;
+    scroller.scrollTop += delta.y;
+  }
+
+  // Let the existing Reset handler restore zoom first.
+  // Recenter after its DOM/layout updates have completed.
+  view.addEventListener("click", event => {
+    const button = event.target.closest?.("button");
+
+    if (!button || !view.contains(button)) return;
+
+    const label = [
+      button.textContent,
+      button.getAttribute("aria-label"),
+      button.getAttribute("title")
+    ].filter(Boolean).join(" ");
+
+    if (!/\breset\b/i.test(label)) return;
+
+    root.requestAnimationFrame(() => {
+      root.requestAnimationFrame(centerHistoricalOverview);
+    });
+  });
+
   // The existing event controller handles selection first.
   // We move the camera on the next animation frame.
   view.addEventListener("click", event => {
+    // Relationship markers use the same camera centering
+    // logic as historical event nodes.
+    const link = event.target.closest?.(
+      ".no-junction-marker"
+    );
+
+    if (link && view.contains(link)) {
+      root.requestAnimationFrame(() => centerNode(link));
+      return;
+    }
+
     const button = event.target.closest?.(
       ".no-timeline-event[data-no-event]"
     );
@@ -220,9 +286,27 @@
     };
   }
 
+  function centerOfAnchors(points) {
+    const valid = points.filter(point =>
+      Number.isFinite(point.x) &&
+      Number.isFinite(point.y)
+    );
+
+    if (!valid.length) return null;
+
+    const xs = valid.map(point => point.x);
+    const ys = valid.map(point => point.y);
+
+    return {
+      x: (Math.min(...xs) + Math.max(...xs)) / 2,
+      y: (Math.min(...ys) + Math.max(...ys)) / 2
+    };
+  }
+
   return Object.freeze({
     centerDelta,
     eventAnchor,
-    gutterSize
+    gutterSize,
+    centerOfAnchors
   });
 });
