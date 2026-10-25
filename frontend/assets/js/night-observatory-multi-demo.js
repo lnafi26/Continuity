@@ -121,11 +121,19 @@
 
   const params = new URLSearchParams(window.location.search);
   const requestedMode = params.get("timeline");
-  const mode = ["single", "multi", "junction"].includes(requestedMode)
+  const mode = [
+    "single", "multi", "junction", "branching"
+  ].includes(requestedMode)
     ? requestedMode
     : "single";
 
-  if (mode !== "single") {
+  if (mode === "branching") {
+    const branching = window.ContinuityBranchingDemo;
+    if (!branching) {
+      throw new Error("Synthetic branching fixture unavailable.");
+    }
+    window.ContinuityTimelineData = branching.build();
+  } else if (mode !== "single") {
     const multi = buildMulti(base);
     window.ContinuityTimelineData = mode === "junction"
       ? buildJunction(multi)
@@ -152,7 +160,8 @@
   for (const [value, label] of [
     ["single", "Single strand"],
     ["multi", "Two workstreams"],
-    ["junction", "Evidence-linked"]
+    ["junction", "Evidence-linked"],
+    ["branching", "Historical branching"]
   ]) {
     const link = document.createElement("a");
     const url = new URL(window.location.href);
@@ -251,10 +260,12 @@
   );
 
   if (legend.length >= 3) {
-    legend[2].textContent = mode === "junction"
-      ? "Synthetic documented handoff"
-      : mode === "multi"
-        ? "Two synthetic historical workstreams"
-        : "Primary historical strand";
+    legend[2].textContent = mode === "branching"
+      ? "Synthetic validated branching"
+      : mode === "junction"
+        ? "Synthetic documented handoff"
+        : mode === "multi"
+          ? "Two synthetic historical workstreams"
+          : "Primary historical strand";
   }
 })();

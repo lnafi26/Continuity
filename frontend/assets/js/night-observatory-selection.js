@@ -31,10 +31,24 @@
 
   // List and Navigator relationship controls delegate
   // to the main Link marker.
+  const junctionSelector = [
+    ".no-branch-tag[data-no-junction]",
+    ".no-branch-mini-button[data-no-junction]"
+  ].join(", ");
+
+  // Miniature junctions delegate to Canvas junction controls.
   const selectableSelector =
-    `${eventSelector}, .no-junction-marker[data-no-relationship]`;
+    `${eventSelector}, .no-junction-marker[data-no-relationship], ` +
+    ".no-branch-tag[data-no-junction]";
 
   function activeSelection() {
+    const activeJunction = stage.querySelector(
+      '.no-branch-tag[aria-pressed="true"]'
+    );
+    if (activeJunction) {
+      return { kind: "junction", id: activeJunction.dataset.noJunction };
+    }
+
     const activeRelationship = stage.querySelector(
       '.no-junction-marker[aria-pressed="true"]'
     );
@@ -87,6 +101,15 @@
       }
     });
 
+    // Historical junction annotations and mini-Navigator indicators.
+    view.querySelectorAll(junctionSelector).forEach(button => {
+      const active = Boolean(
+        selection?.kind === "junction" &&
+        selection.id === button.dataset.noJunction
+      );
+      button.setAttribute("aria-pressed", String(active));
+    });
+
     // A historical event and a relationship may not both
     // own the shared Inspector.
     if (selection?.kind !== "relationship") {
@@ -114,9 +137,35 @@
     ) || null;
   }
 
+  function removeJunctionInspection() {
+    inspector.classList.remove("no-junction-inspecting");
+    inspector.querySelectorAll(
+      ".no-junction-inspector-view"
+    ).forEach(panel => panel.remove());
+  }
+
+  function resolveJunction(id) {
+    const inspect = root.ContinuityJunctionInspection;
+    const renderer = root.ContinuityJunctionInspector;
+    const relations = root.ContinuityHistoricalRelationships;
+    const semantics = root.ContinuityJunctionSemantics;
+    const model = root.ContinuityTimelineData;
+
+    if (!inspect?.prepare || !renderer?.render ||
+        !relations?.classify || !semantics?.classify || !model) {
+      return null;
+    }
+
+    // Revalidate on inspection: no raw junction claim can bypass the
+    // evidence and relationship eligibility checks.
+    return inspect.prepare(model, relations, semantics)
+      .find({ kind: "junction", id });
+  }
+
   function clearSelection() {
     selected = null;
     synchronize(null);
+    removeJunctionInspection();
 
     // Keep the Event Inspector's original DOM alive.
     // Legacy event handlers may hold references to its children.
@@ -135,8 +184,8 @@
 
     const description = document.createElement("p");
     description.textContent =
-      "Select a historical event or documented relationship " +
-      "to inspect its details and supporting evidence.";
+      "Select a historical event, documented relationship, " +
+      "or historical junction to inspect supporting evidence.";
 
     empty.append(heading, description);
     inspector.append(empty);
@@ -146,6 +195,10 @@
     const button = target.closest?.(selectableSelector);
 
     if (!button || !view.contains(button)) return null;
+
+    if (button.dataset.noJunction) {
+      return { kind: "junction", id: button.dataset.noJunction };
+    }
 
     if (button.dataset.noEvent) {
       return {
@@ -208,6 +261,40 @@
       return;
     }
 
+    if (clicked.kind === "junction") {
+      // Junctions are owned exclusively by this selection controller.
+      // Stop event propagation so legacy event/relationship handlers
+      // cannot override the junction Inspector.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      let detail;
+      try {
+        detail = resolveJunction(clicked.id);
+      } catch (error) {
+        console.error("Historical junction inspection denied:", error);
+      }
+      if (!detail) {
+        clearSelection();
+        return;
+      }
+
+      const panel = root.ContinuityJunctionInspector.render(
+        inspector, detail
+      );
+      removeJunctionInspection();
+      inspector.classList.remove("no-selection-empty");
+      inspector.querySelector(".no-inspector-empty-state")?.remove();
+      inspector.append(panel);
+      inspector.classList.add("no-junction-inspecting");
+      synchronize(next);
+      return;
+    }
+
+    // Events and relationships continue through their existing
+    // proven handlers. Preserve their original Inspector DOM.
+    removeJunctionInspection();
+
     // Reveal the preserved Inspector before older controllers
     // populate or update it.
     inspector.classList.remove("no-selection-empty");
@@ -244,7 +331,7 @@
 
   function toggleSelection(current, kind, id) {
     if (
-      !["event", "relationship"].includes(kind) ||
+      !["event", "relationship", "junction"].includes(kind) ||
       typeof id !== "string" ||
       !id
     ) {
