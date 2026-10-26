@@ -1,0 +1,165 @@
+AI PROJECT MANAGER ASSISTANT
+Project definition, planning questions, preliminary recommendations, and reflection
+How to use this document
+Phase 1 records what is currently known and the scope questions still requiring answers. Phases 2 and 3 contain separate open-question and preliminary-recommendation sections because implementation details and dates have not been finalized. Replace or revise those recommendations as the project develops.
+Phase 1. Define the Project Scope Questions
+Current project definition
+The proposed product is an AI-powered project and task management assistant. It analyzes information distributed across emails, documents, files, calendar events, chat messages, images, and audio; identifies which items are semantically related to the same project or topic; and constructs a chronological dashboard containing discussions, meetings, files, decisions, deadlines, and action items.
+Problem being addressed
+People often need to reconstruct when a subject was discussed, where a file was shared, when a meeting occurred, how a decision developed, and what actions remain. Today they may have to search by keyword or sender, review multiple threads, inspect folders, and check several applications manually to construct a concrete project management assistant tool. Related information can be missed when it uses different terminology or appears in separate threads and tools.
+
+Current target audience
+Individuals and teams managing ongoing projects, tasks, or commitments across multiple communication and file-storage tools.
+Potential users include project and product managers, individual professionals, freelancers, consultants, students, researchers, small-business owners, and community organizers.
+The initial audience has not yet been narrowed to one primary user segment.
+Current proposed solution
+Understand the semantic meaning of messages and files instead of relying only on exact keyword matches.
+Group related information into projects, topics, or workstreams.
+Extract participants, dates, meetings, files, decisions, deadlines, and action items.
+Create a chronological, source-linked project timeline on a dashboard.
+Allow users to verify the AI's conclusions by opening the original source.
+
+Current MVP approaches under consideration
+Approach A - File-based prototype
+Provide exported or sample emails, documents, images, audio, meeting notes, or chat files to an AI processing pipeline. This tests whether the core grouping and timeline-generation capability works without first building live integrations.
+Approach B - Limited-integration MVP
+Connect a limited number of tools (for now), currently proposed as Gmail, Google Calendar, and Slack, so that selected project information can be collected automatically.
+Scope questions still requiring answers
+Which user segment should be the primary audience for the first version?
+Teams or individuals that manage or work on projects
+
+What specific real-world scenario should the MVP solve first?
+It solves the issue of needing to manually use keywords to search up documents related to a specific project topic automatically
+
+What evidence from user interviews or observation will validate the problem?
+Need to talk to actual project managers or product managers
+
+Is the main job to find information, reconstruct history, identify decisions, track actions, or combine these outcomes?
+The main job is to retrieve past information, establish semantic meaning relationships between files, and reconstruct history and timeline, list out the most recent action items
+
+Which content sources and file types are essential for the MVP?
+Emails, Docs, Images, Messages 
+
+Should the first MVP use uploaded data, one live integration, or all three proposed integrations?
+It should be able to use uploaded data, and one live integration
+
+
+Remaining Questions:
+What must appear on the timeline, and what can be excluded initially?
+Features – Analyze information and group semantically similar documents together, and construct a conversation history / timeline are the “MUST”. Integrations across different platforms such as Slack, Discord, etc. can be excluded initially
+
+How should the system handle information that belongs to multiple projects?
+Update the information in both the project lists 
+
+What evidence and correction controls will users need to trust the output?
+The users can review the dashboard output, and edit as needed
+
+What access, privacy, retention, and deletion boundaries will users expect?
+For specific task progress for each user, only if they specified which user would they like to share their dashboard overview with, that dashboard view is only visible to that specific user
+Deletion Boundaries – If user specified to delete certain history conversation, it should remain in the trash for 3 months, for deleted message a long time, retain them up to 3-5 years
+
+How will the product differ meaningfully from existing search, inbox, note-taking, and project-management tools?
+It reduces the manual searching, different from note taking, and automated the “project management tool” workflow 
+What does the MVP explicitly not include?
+Not Reconstructing the inbox feature, the tool is not meant to replace or repeat email or message channel, it’s meant to act as “Project Manager”!
+
+What measurable outcome will define a successful prototype?
+User feedback – The output is accurate 
+Phase 2. Architecture Workflow & Steps Needed Questions
+Implementation steps have not yet been finalized. This phase is intentionally divided into questions and provisional recommendations.
+Preliminary recommendations - revise later
+Begin with a controlled file-based prototype to validate semantic grouping, event extraction, and timeline construction before adding authentication and synchronization complexity.
+Use a narrow set of inputs first: exported email messages, meeting/calendar records, and common text-based documents. Add images and audio after the text workflow is reliable.
+Build the processing flow as separate modules: ingestion -> extraction and normalization -> relationship detection -> project grouping -> event/action extraction -> timeline generation -> user review -> dashboard.
+Combine deterministic metadata signals with semantic similarity. Dates, participants, thread identifiers, file links, and explicit project names should support rather than be replaced by LLM reasoning.
+Keep every generated event connected to its original source and include a confidence level or explanation for uncertain project assignments.
+Store user corrections and use them as evaluation feedback before automatically treating them as permanent model behavior.
+After the core pipeline works, add one integration first. Gmail is the strongest initial candidate because it supplies content, participants, timestamps, threads, and attachments in one source.
+Add Google Calendar next to improve meeting and date information. Add Slack only after the project-grouping behavior works across the first two sources.
+
+Architecture and workflow questions
+How will information enter the system: uploaded files, exported data, APIs, or continuous synchronization?
+Uploaded files, exported data, as well as pulling data from API
+
+Which formats must be supported for emails, documents, images, audio, chats, and calendar events?
+	Emails, documents, images, chats, calendar events
+
+Remaining Questions:
+How will text and metadata be extracted from every supported source?
+How will content be cleaned, divided, normalized, and deduplicated?
+Which tasks should use deterministic rules, embeddings, an LLM, or a combination?
+What signals will determine that items belong to the same project?
+How will the system detect decisions, deadlines, owners, and action items?
+How will uncertain groupings be presented for user confirmation?
+How will a user correction affect future grouping decisions?
+What data model will represent users, projects, sources, events, relationships, and permissions?
+Which data belongs in relational storage, vector storage, object storage, or temporary processing?
+How will the system handle duplicates, forwarded email history, updated documents, recurring meetings, and deleted sources?
+How will authentication, encryption, access control, retention, and deletion work?
+How will the dashboard retrieve, filter, explain, and link timeline entries to original sources?
+How will the system be evaluated with a dataset whose correct groupings and timeline are already known?
+What should happen when extraction, an external API, or an AI model fails?
+
+
+
+Chosen architecture approach: ____________________________________________________________
+First implementation milestone: ____________________________________________________________
+Phase 3. Release Date
+A calendar release date should be selected after the Phase 1 scope and Phase 2 implementation approach are confirmed. The schedule below is a recommended relative plan, not a fixed commitment.
+Provisional release recommendation - revise later
+Stage 1: confirm the primary user, use case, MVP boundary, and success criteria; prepare a controlled evaluation dataset.
+Stage 2: build ingestion, text extraction, metadata normalization, and storage for the selected inputs.
+Stage 3: build semantic relationship detection, project grouping, and confidence scoring.
+Stage 4: extract timeline events, decisions, deadlines, and action items; preserve source references.
+Stage 5: build the dashboard and user correction workflow; run end-to-end testing.
+Stage 6: conduct a small user test, fix critical defects, document known limitations, and release the prototype.
+If the available period is shorter, release a file-based prototype and postpone live integrations. If more time is available, add Gmail only after the core workflow passes evaluation.
+Release-date questions
+When will the project officially begin?
+This week to next week (August 3 – August 14)
+
+How many hours per week can realistically be dedicated to it?
+4-6 hours per week at least
+
+Is the release intended for a class demonstration, portfolio project, hackathon, private user test, closed beta, or public MVP?
+Intended for portfolio project and class demonstration
+
+Which features are mandatory for release, and which can be postponed?
+The ability to understand the content of the files and group all files together are mandatory,  the ability to integrate with other message channels can be postponed
+
+Does the release require a live integration, or is a file-based demonstration sufficient?
+The expectation is to do live integration, but file-based demonstration can be added
+
+How much time is required to obtain API access, configure authentication, and prepare test data?
+You need significant amount of time to prepare test data, then getting API Access and configure authentication should not take that much time
+
+How much time will be reserved for testing, privacy review, bug fixing, documentation, and deployment?
+Testing, bug fixing will take more time compared to privacy review and documentation
+
+Who will test the product before release?
+The intended projects will be tested by consultant team or project managers
+
+What conditions would justify changing the release date or reducing scope?
+If the major features has big issues, fix it first
+Phase 4: Reflection
+Problem and user reflection
+Did the research validate the original problem, or reveal a different problem?
+Which users experienced the strongest and most frequent need?
+Which part of reconstructing project history caused the greatest difficulty?
+Did users need a timeline, better search, action tracking, or another outcome more urgently?
+Solution and technical reflection
+Which part of the solution created the most value?
+Were the generated project relationships, events, and action items accurate enough to be useful?
+Which errors reduced user trust?
+Could users understand why information was grouped together and verify the original source?
+Which architecture decisions worked well, and which created unnecessary complexity?
+Was the selected integration strategy appropriate for the project stage?
+Release and next-step reflection
+Was the release scope realistic for the available time?
+What took more time than expected?
+Which features should be removed, improved, or added in the next iteration?
+Should the next version narrow the target audience or expand it?
+What evidence would justify adding another integration?
+What privacy, security, accuracy, or cost risk requires further investigation?
+What is the single most important experiment for the next design-thinking cycle?
+

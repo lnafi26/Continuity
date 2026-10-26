@@ -1,38 +1,64 @@
 name: Deploy Continuity Staging
 
-# Manual only; no push-triggered public staging deployment.
-# Checkout explicitly targets staging and publishes only deploy/staging.
+# Stage only. Never publish on a main-branch push or PR.
 on:
+  push:
+    branches:
+      - staging
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: continuity-staging-pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Publish isolated staging holding page
+  validate:
+    name: Validate synthetic staging release
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout staging branch
+      - name: Checkout branch or PR merge
         uses: actions/checkout@v4
         with:
-          ref: staging
           persist-credentials: false
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-      - name: Upload staging artifact
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in frontend/assets/js/night-observatory-*.js; do
+            node --check "$file"
+          done
+      - name: Run Night Observatory regression tests
+        run: node --test frontend/tests/night-observatory-*.test.cjs
+      - name: Build isolated Pages bundle from reviewed assets
+        run: python3 scripts/build_staging_site.py --output dist/staging
+      - name: Upload Pages artifact for staging pushes only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
         uses: actions/upload-pages-artifact@v4
         with:
-          path: deploy/staging
-      - name: Deploy to GitHub Pages
+          path: dist/staging
+
+  deploy:
+    name: Publish staging to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+    steps:
+      - name: Deploy verified Pages artifact
         id: deployment
         uses: actions/deploy-pages@v4

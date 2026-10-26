@@ -1,0 +1,94 @@
+
+/* Night Observatory — Historical event navigation */
+
+.continuity-shell .no-event-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  margin: 4px 0 12px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--no-accent);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.continuity-shell .no-event-open:hover {
+  text-decoration: underline;
+}
+
+.continuity-shell .no-timeline-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, .8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.continuity-shell .no-timeline-list {
+  display: grid;
+  gap: 10px;
+}
+
+.continuity-shell .no-timeline-list h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.continuity-shell .no-timeline-event {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 16px;
+  background: var(--no-canvas);
+  border: 1px solid var(--no-border);
+  border-radius: var(--no-radius-small);
+  color: var(--no-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.continuity-shell .no-timeline-event[aria-pressed="true"] {
+  border-color: var(--no-accent);
+  background: var(--no-elevated);
+}
+
+.continuity-shell .no-timeline-event small {
+  color: var(--no-secondary);
+  line-height: 1.5;
+}
+
+.continuity-shell .no-event-inspector {
+  min-width: 0;
+  scroll-margin-top: 20px;
+}
+
+.continuity-shell .no-event-inspector h2 {
+  font-size: 23px;
+  line-height: 1.35;
+}
+
+.continuity-shell .no-event-inspector p {
+  color: var(--no-secondary);
+  line-height: 1.7;
+}
+
+.continuity-shell .no-event-evidence {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--no-border);
+}
+
+.continuity-shell .no-event-evidence h3 {
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  .continuity-shell .no-timeline-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

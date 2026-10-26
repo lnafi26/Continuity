@@ -1,0 +1,38 @@
+/* Project Continuity — Night Observatory Design Tokens */
+/* C2.1a: Foundation only. Not yet imported into the live interface. */
+
+:root {
+  /* Backgrounds */
+  --no-night: #09101b;
+  --no-canvas: #0c1320;
+  --no-raised: #141f2e;
+  --no-elevated: #1b2a3c;
+
+  /* Borders and typography */
+  --no-border: #2b3b52;
+  --no-text: #ebf1f9;
+  --no-secondary: #aabbd1;
+
+  /* Semantic colors */
+  --no-accent: #a4c4ff;
+  --no-information: #83cddd;
+  --no-caution: #e2b16d;
+  --no-attested: #a8dfc9;
+  --no-destructive: #f08e9b;
+  --no-focus: #b6d4ff;
+
+  /* Geometry */
+  --no-radius-small: 8px;
+  --no-radius-panel: 12px;
+  --no-rail-width: 242px;
+
+  /* Typography */
+  --no-font-body: system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --no-font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+/* Apply native dark controls only inside the new application shell. */
+.continuity-shell {
+  color-scheme: dark;
+}

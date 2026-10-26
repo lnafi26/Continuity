@@ -1,0 +1,178 @@
+/* Evidence-linked connections in the historical Canvas. */
+
+.continuity-shell .no-junction-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.continuity-shell .no-junction-path {
+  fill: none;
+  stroke: var(--no-attested);
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.continuity-shell .no-junction-marker {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  min-width: 52px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--no-attested);
+  border-radius: 999px;
+  background: var(--no-raised);
+  color: var(--no-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.continuity-shell .no-junction-marker:hover,
+.continuity-shell .no-junction-marker:focus-visible {
+  outline: 2px solid var(--no-focus);
+  outline-offset: 2px;
+}
+
+.continuity-shell .no-junction-panel {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, 24px);
+  width: min(260px, 70%);
+  padding: 14px;
+  border: 1px solid var(--no-border);
+  border-radius: 10px;
+  background: var(--no-elevated);
+  color: var(--no-text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+.continuity-shell .no-junction-panel[hidden] {
+  display: none;
+}
+
+.continuity-shell .no-junction-panel strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.continuity-shell .no-junction-panel p {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.continuity-shell .no-junction-panel small {
+  display: block;
+  color: var(--no-secondary);
+  line-height: 1.5;
+}
+
+.continuity-shell .no-junction-close {
+  margin-top: 10px;
+  padding: 5px 9px;
+  border: 1px solid var(--no-border);
+  border-radius: 6px;
+  background: var(--no-raised);
+  color: var(--no-text);
+  cursor: pointer;
+}
+
+
+/* Active relationship inspection, independent of hover/focus. */
+.continuity-shell .no-junction-marker.no-junction-active {
+  background: var(--no-elevated);
+  border-color: var(--no-attested);
+  box-shadow: 0 0 0 3px rgb(168 223 201 / 0.18);
+}
+
+
+/* C2.2 — Shared Event and Relationship Inspector */
+
+.continuity-shell #noEventInspector.no-relationship-inspecting
+  > :not(.no-junction-panel) {
+  display: none !important;
+}
+
+.continuity-shell #noEventInspector .no-junction-panel {
+  position: relative;
+  inset: auto;
+  transform: none;
+  z-index: auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.continuity-shell #noEventInspector .no-junction-panel[hidden] {
+  display: none !important;
+}
+
+.continuity-shell .no-relationship-endpoints {
+  padding: 10px 12px;
+  border: 1px solid var(--no-border);
+  border-radius: 8px;
+  background: var(--no-raised);
+  color: var(--no-text);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.continuity-shell .no-relationship-evidence {
+  display: block;
+  padding: 10px 12px;
+  border-left: 2px solid var(--no-attested);
+  color: var(--no-secondary);
+  overflow-wrap: anywhere;
+}
+
+
+/* Relationship as a first-class historical list item */
+.continuity-shell .no-timeline-relationship {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--no-attested);
+  border-radius: 10px;
+  background: var(--no-canvas);
+  color: var(--no-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.continuity-shell .no-timeline-relationship strong,
+.continuity-shell .no-timeline-relationship small {
+  display: block;
+}
+
+.continuity-shell .no-timeline-relationship small {
+  margin-top: 8px;
+  color: var(--no-secondary);
+  line-height: 1.5;
+}
+
+.continuity-shell .no-timeline-relationship[aria-pressed="true"] {
+  background: var(--no-elevated);
+  outline: 2px solid var(--no-attested);
+  outline-offset: -2px;
+}
+
+.continuity-shell .no-timeline-relationship:focus-visible {
+  outline: 2px solid var(--no-focus);
+  outline-offset: 2px;
+}

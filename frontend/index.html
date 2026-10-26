@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Project memory dashboard prototype">
+  <title>ThreadLinePMA | AI Project Manager Assistant</title>
+  <link rel="stylesheet" href="assets/css/styles.css?v=48">
+</head>
+<body class="auth-pending">
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#"><span class="logo">≋</span> ThreadLinePMA</a>
+      <nav aria-label="Primary navigation">
+        <button class="nav active" data-target="overview"><span>⌂</span>Overview</button>
+        <button class="nav" data-target="projects"><span>▦</span>Projects <b id="navProjectCount">0</b></button>
+        <button class="nav" data-target="actions"><span>✓</span>My Task Board <b class="warn" id="navActionCount">0</b></button>
+        <button class="nav" id="sourcesNav"><span>↗</span>Sources</button>
+      </nav>
+      <div class="side-section">
+        <p class="side-label">Connected sources</p>
+        <ul class="mini-sources" id="sidebarSources">
+          <li><i class="source gmail">M</i> Gmail <em class="source-state">Not connected</em></li>
+          <li><i class="source calendar">31</i> Google Calendar <em class="source-state">Not connected</em></li>
+        </ul>
+        <button class="link-btn" id="manageSources">+ Connect or manage</button>
+      </div>
+      <div class="spacer"></div>
+      <div class="sync-box" id="syncBox"><p><i></i> <span id="syncTitle">Waiting for a connection</span></p><small id="syncStatus">No automatic imports yet</small><button id="scanBtn">Connect apps</button></div>
+      <button class="profile" id="profileButton" type="button"><span id="profileInitials">--</span><div><strong id="profileName">Account</strong><small id="profileTitle">Sign in required</small></div></button>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="icon mobile" id="menuBtn" aria-label="Open menu">☰</button>
+        <div class="spacer"></div>
+        <button class="icon" aria-label="Notifications">♢<i class="notice"></i></button>
+        <button class="button primary" id="connectAppsBtn">↗ Connect apps</button>
+      </header>
+
+      <div class="content" id="overview">
+        <section class="catchup-hero" id="catchupHero">
+          <div class="catchup-copy">
+            <p class="eyebrow">👋 WELCOME BACK</p>
+            <h1>Catch up on what you missed, <span id="welcomeUserName">there</span></h1>
+            <p class="catchup-since">Since <strong id="catchupSince">—</strong></p>
+          </div>
+          <div class="catchup-actions">
+            <button class="button primary" id="catchMeUpBtn">Catch Me Up</button>
+          </div>
+          <div class="catchup-override">
+            <span>Or catch me up from</span>
+            <input type="date" id="oooFrom" aria-label="From date">
+            <span>to</span>
+            <input type="date" id="oooTo" aria-label="To date">
+            <button class="button secondary" id="oooShowBtn">Show</button>
+          </div>
+        </section>
+
+        <section class="connect-prompt" id="connectPrompt" hidden>
+          <span>You can manage Gmail and Google Calendar connections here. Automatic imports aren't enabled yet.</span>
+          <button class="button primary" id="connectPromptBtn">Connect apps</button>
+        </section>
+
+        <section class="panel catchup-panel" id="catchupPanel">
+          <div class="section-head"><div><h2>What changed</h2><p>Decisions and differing opinions first, grouped by project</p></div></div>
+          <div id="catchupList"></div>
+        </section>
+      </div>
+
+      <div class="content" id="actions" hidden>
+        <div class="workspace-heading">
+          <div><p class="eyebrow">TASKS & WHAT'S NEXT</p><h2>My Task Board</h2><p>AI-inferred status — drag a card to correct it — plus meetings and deadlines ahead.</p></div>
+        </div>
+
+        <section class="panel board-panel" id="boardPanel">
+          <div class="section-head"><div><h2>Action board</h2><p>AI-inferred status — drag a card to correct it</p></div></div>
+          <div class="board-filters" id="boardFilters">
+            <div class="board-filter-group">
+              <span class="board-filter-label">Project</span>
+              <div class="board-filter-dropdown" id="boardProjectFilterDropdown">
+                <button type="button" class="board-filter-dd-btn" id="boardProjectFilterBtn" aria-haspopup="true" aria-expanded="false">All projects ▾</button>
+                <div class="board-filter-dd-menu" id="boardProjectFilterMenu" hidden></div>
+              </div>
+            </div>
+            <div class="board-filter-group">
+              <span class="board-filter-label">Due date</span>
+              <input type="date" id="boardDueFrom" aria-label="Due from">
+              <span>to</span>
+              <input type="date" id="boardDueTo" aria-label="Due to">
+              <button type="button" class="link-btn" id="boardFilterClear">Clear filters</button>
+            </div>
+          </div>
+          <div class="board-grid" id="boardGrid">
+            <div class="board-col"><h4>In Progress</h4><div class="board-list" data-col="in_progress"></div></div>
+            <div class="board-col"><h4>Completed</h4><div class="board-list" data-col="completed"></div></div>
+            <div class="board-col"><h4>Backlog</h4><div class="board-list" data-col="backlog"></div></div>
+          </div>
+        </section>
+
+        <section class="panel upcoming-panel">
+          <div class="section-head"><div><h2>Upcoming</h2><p>Meetings and deadlines ahead</p></div></div>
+          <div id="upcomingList"></div>
+        </section>
+      </div>
+
+      <div class="content" id="projects" hidden>
+        <div id="projectsGridView">
+          <div class="workspace-heading">
+            <div><p class="eyebrow">ALL PROJECTS</p><h2>Projects</h2><p>Everything ThreadLinePMA has grouped from your connected sources — not just what's changed recently.</p></div>
+          </div>
+          <section class="panel projects-panel">
+            <div id="projectsList" class="projects-grid"></div>
+          </section>
+        </div>
+
+        <div id="projectDetailView" hidden>
+          <button type="button" class="link-btn" id="backToProjectsBtn">← Back to all projects</button>
+          <section class="panel project-detail-panel">
+            <div id="projectDetailBody"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="backdrop" id="backdrop"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <header><div><p class="eyebrow">PROJECT MEMORY</p><h2 id="drawerTitle"></h2></div><button class="icon" id="closeDrawer" aria-label="Close">×</button></header>
+    <div class="tabs"><button class="active" data-tab="timeline">Timeline</button><button data-tab="actions">Actions</button><button data-tab="files">Files</button></div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <dialog id="editItemDialog">
+    <form id="editItemForm"><header><div><p class="eyebrow">VERIFY OR CORRECT</p><h2 id="editItemTitle">Edit</h2></div><button type="button" class="icon close-dialog">×</button></header><p class="help" id="editItemHelp"></p><div class="form-grid" id="editItemFields"></div><footer><button type="button" class="button secondary close-dialog">Cancel</button><button class="button primary">Save</button></footer></form>
+  </dialog>
+
+  <dialog id="sourcesDialog">
+    <form method="dialog"><header><div><p class="eyebrow">CONNECTED APPS</p><h2>Connect your workspace</h2></div><button value="cancel" class="icon">×</button></header><p class="help">Connect Gmail and Google Calendar with read-only permissions. Automatic imports are currently disabled, so connecting an account will not start importing data. You can still upload files separately.</p><div id="connectorList"></div><footer><button value="done" class="button primary">Done</button></footer></form>
+  </dialog>
+  
+  <dialog id="loginDialog" aria-labelledby="loginTitle">
+    <div class="auth-shell">
+      <aside class="auth-visual" aria-hidden="true">
+        <div class="auth-brand"><span>≋</span> ThreadLinePMA</div>
+        <div class="auth-promise">
+          <span class="auth-kicker">YOUR AUTOMATIC PROJECT MEMORY</span>
+          <h2>From scattered updates<br>to one clear timeline.</h2>
+          <p>Connect Gmail and Google Calendar. ThreadLinePMA organizes the conversations, decisions, and next steps for you.</p>
+        </div>
+        <div class="memory-visual">
+          <div class="memory-line"></div>
+          <article class="memory-card memory-email"><i>M</i><div><small>GMAIL · 9:42 AM</small><strong>Launch review approved</strong><span>Linked to Website Redesign</span></div></article>
+          <article class="memory-card memory-meeting"><i>31</i><div><small>CALENDAR · TOMORROW</small><strong>Final stakeholder review</strong><span>4 attendees · 2 actions</span></div></article>
+          <article class="memory-card memory-decision"><i>✓</i><div><small>DECISION CAPTURED</small><strong>Ship Friday at 4:00 PM</strong><span>Confidence 96%</span></div></article>
+          <div class="memory-summary"><span>✦</span><div><strong>18 items organized</strong><small>across 4 active projects</small></div></div>
+        </div>
+        <div class="auth-visual-footer"><span>✓ Read-only connections</span><span>✓ Your data stays yours</span></div>
+      </aside>
+
+      <main class="auth-panel">
+        <form id="loginForm">
+          <div class="auth-heading">
+            <span class="auth-mobile-logo">≋</span>
+            <p class="eyebrow">WELCOME BACK</p>
+            <h1 id="loginTitle">Sign in</h1>
+            <p>Continue to your organized project workspace.</p>
+          </div>
+
+          <div class="auth-fields">
+            <label>
+              <span>Email address</span>
+              <div class="auth-input"><i>@</i><input id="authEmail" type="email" autocomplete="email" placeholder="you@company.com" required></div>
+            </label>
+            <label>
+              <span>Password</span>
+              <div class="auth-input"><i>⌑</i><input id="authPassword" type="password" autocomplete="current-password" placeholder="Enter your password" required><button id="togglePassword" type="button" aria-label="Show password">Show</button></div>
+            </label>
+          </div>
+
+          <p id="authMessage" class="auth-message" aria-live="polite"></p>
+          <button class="forgot-password" id="forgotPassword" type="button">Forgot your password?</button>
+          <button class="auth-submit" type="submit" data-action="signin">Sign in <span>→</span></button>
+          <div class="auth-divider"><span>New to ThreadLinePMA?</span></div>
+          <button class="auth-create" id="openSignup" type="button">Create a free account</button>
+          <p class="auth-legal">Protected by Supabase Auth · <a href="#">Privacy</a> · <a href="#">Terms</a></p>
+        </form>
+      </main>
+    </div>
+  </dialog>
+
+  <dialog id="signupDialog" aria-labelledby="signupTitle">
+    <div class="signup-shell">
+      <aside class="signup-visual" aria-hidden="true">
+        <div class="auth-brand"><span>≋</span> ThreadLinePMA</div>
+        <div class="signup-story">
+          <p class="auth-kicker">SET UP ONCE. STAY ORGANIZED.</p>
+          <h2>Your projects already exist in your conversations.</h2>
+          <p>ThreadLinePMA finds the connections and turns them into a workspace you can trust.</p>
+          <ul>
+            <li><i>1</i><div><strong>Connect your sources</strong><small>Start with Gmail and Google Calendar.</small></div></li>
+            <li><i>2</i><div><strong>Let ThreadLinePMA organize</strong><small>Related messages, meetings, and actions are grouped automatically.</small></div></li>
+            <li><i>3</i><div><strong>Review with confidence</strong><small>Every insight stays linked to its original source.</small></div></li>
+          </ul>
+        </div>
+        <div class="auth-visual-footer"><span>✓ Read-only by default</span><span>✓ Disconnect anytime</span></div>
+      </aside>
+
+      <main class="signup-panel">
+        <button class="signup-back" id="backToLogin" type="button">← Back to sign in</button>
+        <div id="signupFormView">
+          <div class="auth-heading">
+            <p class="eyebrow">CREATE YOUR ACCOUNT</p>
+            <h1 id="signupTitle">Start your workspace</h1>
+            <p>Use your work email and choose a secure password.</p>
+          </div>
+          <form id="signupForm">
+            <div class="auth-fields">
+              <label><span>Username</span><div class="auth-input"><i>◇</i><input id="signupName" autocomplete="name" placeholder="Your name" required></div></label>
+              <label><span>Email address</span><div class="auth-input"><i>@</i><input id="signupEmail" type="email" autocomplete="email" placeholder="you@company.com" required></div></label>
+              <label><span>Password</span><div class="auth-input"><i>⌑</i><input id="signupPassword" type="password" autocomplete="new-password" minlength="15" placeholder="At least 15 characters" required></div></label>
+              <label><span>Confirm password</span><div class="auth-input"><i>⌑</i><input id="signupPasswordConfirm" type="password" autocomplete="new-password" minlength="15" placeholder="Enter the password again" required></div></label>
+            </div>
+            <p id="signupMessage" class="auth-message" aria-live="polite"></p>
+            <button class="auth-submit" type="submit">Create account <span>→</span></button>
+            <p class="auth-legal">By creating an account, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+          </form>
+        </div>
+        <div class="signup-success" id="signupSuccess" hidden>
+          <i>✓</i>
+          <p class="eyebrow">YOU’RE ALL SET</p>
+          <h2>Account created!</h2>
+          <p id="signupSuccessText">You will be redirected back to the sign-in page…</p>
+          <button class="auth-submit" id="returnToLogin" type="button">Return to sign in now</button>
+        </div>
+      </main>
+    </div>
+  </dialog>
+
+  <dialog id="accountDialog">
+    <div class="account-dialog">
+      <header><div><p class="eyebrow">ACCOUNT</p><h2>Profile and security</h2><small id="accountEmail"></small></div><button class="icon" id="closeAccount" type="button">×</button></header>
+      <form id="profileForm">
+        <div class="form-grid"><label class="full">Display name<input id="profileDisplayName" required></label><label class="full">Job title<input id="profileJobTitle"></label></div>
+        <footer><button class="button primary">Save profile</button></footer>
+      </form>
+      <form id="passwordForm">
+        <div class="form-grid">
+          <label class="full">
+            Current password
+            <input id="currentPassword"
+                  type="password"
+                  autocomplete="current-password"
+                  required>
+          </label>
+
+          <label class="full">
+            New password
+            <input id="newPassword"
+                  type="password"
+                  minlength="15"
+                  autocomplete="new-password"
+                  required>
+          </label>
+
+          <label class="full">
+            Confirm new password
+            <input id="confirmNewPassword"
+                  type="password"
+                  minlength="15"
+                  autocomplete="new-password"
+                  required>
+          </label>
+
+          <label class="full" id="passwordReauthField" hidden>
+            Email verification code
+            <input
+              id="passwordReauthCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              placeholder="Enter the code from your email">
+          </label>
+
+          <button
+            id="sendPasswordReauth"
+            class="button secondary"
+            type="button"
+            hidden>
+            Send verification code
+          </button>
+        </div>
+
+        <p id="passwordMessage" class="auth-message" aria-live="polite"></p>
+
+        <footer>
+          <button class="button secondary" type="submit">
+            Update password
+          </button>
+          <button class="link-btn" id="signOutButton"
+                  type="button">
+            Sign out
+          </button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="config/supabase-config.js"></script>
+  <script src="assets/js/dashboard.js?v=47"></script>
+  <script src="assets/js/auth.js?v=51"></script>
+</body>
+</html>

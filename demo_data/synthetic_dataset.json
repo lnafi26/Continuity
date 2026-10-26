@@ -1,0 +1,188 @@
+{
+  "_comment": "Reusable synthetic WORK-ONLY Gmail + Calendar dataset for ThreadLinePMA. Content is limited to work: projects, tasks, team meetings, manager 1:1s, conferences, work training, project discussions/differing opinions, and interview panels. It deliberately EXCLUDES job applications, job alerts, and personal events. Dates are RELATIVE (days_ago / days_from_now) so the demo always looks current. Loaded into source_items via load_demo_data.py — the same write path Stage 1 uses. All addresses/content are fictional.",
+  "gmail_messages": [
+    {
+      "id": "demo-gmail-001",
+      "thread_id": "demo-thread-payments",
+      "subject": "Payments service migration — proposed plan",
+      "from": "architect.sam@acmecorp.com",
+      "to": ["testxu495@acmecorp.com", "lena.dev@acmecorp.com"],
+      "days_ago": 6,
+      "body": "Team, here is the proposed plan to migrate the payments service to the new platform. Decision to make: big-bang cutover vs. a phased rollout. Action items: Xu to draft the migration runbook; Lena to scope the integration tests. Let's align at the design review."
+    },
+    {
+      "id": "demo-gmail-002",
+      "thread_id": "demo-thread-payments",
+      "subject": "Re: Payments service migration — concerns about the timeline",
+      "from": "lena.dev@acmecorp.com",
+      "to": ["architect.sam@acmecorp.com", "testxu495@acmecorp.com"],
+      "days_ago": 5,
+      "body": "I disagree with a big-bang cutover — the risk to live transactions is too high. I'd strongly prefer a phased rollout behind a feature flag, starting with read traffic. Happy to walk through the tradeoffs at the review."
+    },
+    {
+      "id": "demo-gmail-003",
+      "thread_id": "demo-thread-payments",
+      "subject": "Re: Payments service migration — decision + action items",
+      "from": "testxu495@acmecorp.com",
+      "to": ["architect.sam@acmecorp.com", "lena.dev@acmecorp.com"],
+      "days_ago": 4,
+      "body": "Summary from today: we agreed on a phased rollout behind a feature flag. Action items: Xu to write the migration runbook by Aug 21; Lena to add integration tests by Aug 22; Sam to set up the feature flag. Next checkpoint at the weekly sync."
+    },
+
+    {
+      "id": "demo-gmail-010",
+      "thread_id": "demo-thread-1on1",
+      "subject": "Agenda for our weekly 1:1",
+      "from": "manager.dana@acmecorp.com",
+      "to": ["testxu495@acmecorp.com"],
+      "days_ago": 2,
+      "body": "For our 1:1: let's cover the payments migration status, your growth goals for the quarter, and any blockers. Please add anything you'd like to discuss to the shared doc beforehand."
+    },
+
+    {
+      "id": "demo-gmail-020",
+      "thread_id": "demo-thread-roadmap",
+      "subject": "Q3 roadmap — please review priorities",
+      "from": "pm.raj@acmecorp.com",
+      "to": ["testxu495@acmecorp.com", "lena.dev@acmecorp.com", "architect.sam@acmecorp.com"],
+      "days_ago": 3,
+      "body": "Draft Q3 roadmap attached. Please review the proposed priorities and leave comments before the planning meeting. Action required: rank your top three items."
+    },
+    {
+      "id": "demo-gmail-021",
+      "thread_id": "demo-thread-roadmap",
+      "subject": "Re: Q3 roadmap — I'd reprioritize observability",
+      "from": "lena.dev@acmecorp.com",
+      "to": ["pm.raj@acmecorp.com", "testxu495@acmecorp.com"],
+      "days_ago": 2,
+      "body": "Different take: I think observability should be above the new dashboard work. We keep getting paged without good traces. Would love to debate this at planning."
+    },
+
+    {
+      "id": "demo-gmail-030",
+      "thread_id": "demo-thread-interview-panel",
+      "subject": "Interview panel: Backend Engineer candidate",
+      "from": "recruiting@acmecorp.com",
+      "to": ["testxu495@acmecorp.com"],
+      "days_ago": 1,
+      "body": "You're on the interview panel for a Backend Engineer candidate -- see the calendar invite for the exact time. Please review the candidate's resume beforehand and focus your round on system design. Submit your feedback in the hiring tool within 24 hours of the interview."
+    },
+
+    {
+      "id": "demo-gmail-040",
+      "thread_id": "demo-thread-training",
+      "subject": "Enrollment confirmed: Advanced SQL & Query Optimization",
+      "from": "learning@acmecorp.com",
+      "to": ["testxu495@acmecorp.com"],
+      "days_ago": 3,
+      "body": "Your enrollment in the internal Advanced SQL & Query Optimization training is confirmed. Session 1 is scheduled this week. Please complete the pre-work notebook before the session."
+    },
+
+    {
+      "id": "demo-gmail-050",
+      "thread_id": "demo-thread-conference",
+      "subject": "Your Internal Engineering Summit schedule",
+      "from": "events@acmecorp.com",
+      "to": ["testxu495@acmecorp.com"],
+      "days_ago": 2,
+      "body": "Here is your personalized schedule for the Internal Engineering Summit. You are registered for the platform keynote and two breakout sessions on reliability. Add them to your calendar."
+    },
+
+    {
+      "id": "demo-gmail-100",
+      "thread_id": null,
+      "subject": "Weekly engineering blog digest",
+      "from": "no-reply@eng-digest.example.com",
+      "to": ["testxu495@acmecorp.com"],
+      "days_ago": 1,
+      "body": "This week's most-read engineering articles. You are receiving this because you subscribed. To stop, unsubscribe or update your preferences."
+    }
+  ],
+
+  "calendar_events": [
+    {
+      "id": "demo-cal-001",
+      "recurring_id": null,
+      "summary": "Payments Migration — Design Review",
+      "organizer": "architect.sam@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com", "lena.dev@acmecorp.com", "architect.sam@acmecorp.com"],
+      "days_from_now": -1,
+      "start_hour": 13,
+      "duration_min": 60,
+      "location": "Google Meet",
+      "description": "Review the migration plan and decide rollout strategy. Bring your concerns about timeline and risk."
+    },
+    {
+      "id": "demo-cal-010",
+      "recurring_id": "demo-recurring-1on1",
+      "summary": "Weekly 1:1 with Dana (Manager)",
+      "organizer": "manager.dana@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com", "manager.dana@acmecorp.com"],
+      "days_from_now": -7,
+      "start_hour": 15,
+      "duration_min": 30,
+      "location": "Zoom",
+      "description": "Weekly sync on project status, growth goals, and blockers."
+    },
+    {
+      "id": "demo-cal-011",
+      "recurring_id": "demo-recurring-1on1",
+      "summary": "Weekly 1:1 with Dana (Manager)",
+      "organizer": "manager.dana@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com", "manager.dana@acmecorp.com"],
+      "days_from_now": 0,
+      "start_hour": 15,
+      "duration_min": 30,
+      "location": "Zoom",
+      "description": "Weekly sync. This week: payments migration status and quarter goals."
+    },
+    {
+      "id": "demo-cal-020",
+      "recurring_id": null,
+      "summary": "Q3 Roadmap Planning",
+      "organizer": "pm.raj@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com", "lena.dev@acmecorp.com", "pm.raj@acmecorp.com"],
+      "days_from_now": 1,
+      "start_hour": 10,
+      "duration_min": 90,
+      "location": "Zoom",
+      "description": "Finalize Q3 priorities. Debate observability vs. dashboard work."
+    },
+    {
+      "id": "demo-cal-030",
+      "recurring_id": null,
+      "summary": "Interview Panel — Backend Engineer Candidate",
+      "organizer": "recruiting@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com", "recruiting@acmecorp.com"],
+      "days_from_now": 1,
+      "start_hour": 14,
+      "duration_min": 60,
+      "location": "Google Meet",
+      "description": "System design round. Review the candidate's resume beforehand; submit feedback after."
+    },
+    {
+      "id": "demo-cal-040",
+      "recurring_id": null,
+      "summary": "Advanced SQL Training — Session 1",
+      "organizer": "learning@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com", "learning@acmecorp.com"],
+      "days_from_now": 2,
+      "start_hour": 9,
+      "duration_min": 120,
+      "location": "Training Room B / Zoom",
+      "description": "Advanced SQL and query optimization. Complete the pre-work notebook first."
+    },
+    {
+      "id": "demo-cal-050",
+      "recurring_id": null,
+      "summary": "Internal Engineering Summit — Platform Keynote",
+      "organizer": "events@acmecorp.com",
+      "attendees": ["testxu495@acmecorp.com"],
+      "days_from_now": 3,
+      "start_hour": 11,
+      "duration_min": 90,
+      "location": "Main Auditorium",
+      "description": "Company engineering summit keynote on the platform strategy, followed by reliability breakouts."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+
+# Local virtual environments
+.venv/
+venv/
+backend/.venv/
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+
+# Microsoft Office temporary lock files
+~$*

@@ -1,0 +1,75 @@
+
+/* Continuity C2.1c — Canvas viewport controls */
+
+.continuity-shell .no-canvas-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.continuity-shell .no-viewport-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.continuity-shell .no-viewport-controls button {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--no-border);
+  border-radius: 7px;
+  background: var(--no-raised);
+  color: var(--no-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.continuity-shell .no-viewport-controls button:hover:not(:disabled) {
+  border-color: var(--no-accent);
+}
+
+.continuity-shell .no-viewport-controls button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.continuity-shell #noZoomLevel {
+  min-width: 50px;
+  text-align: center;
+  color: var(--no-secondary);
+  font-size: 12px;
+}
+
+.continuity-shell #noCanvasViewport {
+  height: 320px;
+  overflow: auto;
+  cursor: grab;
+  overscroll-behavior: contain;
+}
+
+.continuity-shell #noCanvasViewport.no-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.continuity-shell #noCanvasViewport .no-canvas-stage {
+  min-width: 0;
+}
+
+.continuity-shell #noCanvasViewport button {
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .continuity-shell .no-canvas-header {
+    flex-wrap: wrap;
+  }
+
+  .continuity-shell .no-canvas-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
