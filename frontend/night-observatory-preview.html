@@ -287,6 +287,7 @@
           </button>
 
 
+          <div class="no-workbench">
           <section class="no-panel no-canvas-region"
                    aria-labelledby="noCanvasHeading">
             <div class="no-canvas-header">
@@ -340,6 +341,34 @@
             </p>
           </section>
 
+          <aside class="no-workbench-inspector"
+                 aria-label="Historical Inspector">
+            <div class="no-workbench-inspector-heading">
+              <span class="no-preview-label">Inspector</span>
+              <p>Historical context and supporting evidence</p>
+            </div>
+            <article class="no-panel no-event-inspector"
+                     id="noEventInspector"
+                     tabindex="-1" aria-live="polite">
+              <span class="no-preview-label" id="noInspectorType">
+                Historical event
+              </span>
+              <h2 id="noInspectorTitle">Select an event</h2>
+              <p id="noInspectorDate"></p>
+              <p id="noInspectorBody">
+                Choose a historical event to inspect its details.
+              </p>
+
+              <div class="no-event-evidence">
+                <h3>Provenance</h3>
+                <p id="noInspectorEvidence">
+                  Demonstration records only.
+                </p>
+              </div>
+            </article>
+          </aside>
+          </div>
+
           <div class="no-timeline-layout">
             <section class="no-panel no-timeline-list"
                      aria-label="Historical events">
@@ -360,25 +389,7 @@
               </button>
             </section>
 
-            <article class="no-panel no-event-inspector"
-                     id="noEventInspector"
-                     tabindex="-1" aria-live="polite">
-              <span class="no-preview-label" id="noInspectorType">
-                Historical event
-              </span>
-              <h2 id="noInspectorTitle">Select an event</h2>
-              <p id="noInspectorDate"></p>
-              <p id="noInspectorBody">
-                Choose a historical event to inspect its details.
-              </p>
 
-              <div class="no-event-evidence">
-                <h3>Provenance</h3>
-                <p id="noInspectorEvidence">
-                  Demonstration records only.
-                </p>
-              </div>
-            </article>
           </div>
         </section>
 
