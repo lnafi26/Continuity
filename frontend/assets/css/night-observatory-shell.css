@@ -158,3 +158,58 @@
 .continuity-shell #view-continuity > .no-canvas-region {
   margin-top: 16px;
 }
+
+
+/* C2 Atlas library entry */
+.continuity-shell .no-atlas-library {
+  display: grid;
+  gap: 16px;
+  max-width: 1100px;
+  margin-top: 26px;
+}
+
+.continuity-shell .no-atlas-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, .7fr);
+  align-items: center;
+  gap: 30px;
+}
+
+.continuity-shell .no-atlas-entry h2 {
+  margin: 12px 0;
+  font-size: clamp(22px, 2vw, 28px);
+  letter-spacing: -.025em;
+}
+
+.continuity-shell .no-atlas-entry-main p {
+  max-width: 620px;
+  color: var(--no-secondary);
+  line-height: 1.65;
+}
+
+.continuity-shell .no-atlas-capabilities {
+  display: grid;
+  gap: 12px;
+  padding: 18px 0 18px 24px;
+  border-left: 1px solid var(--no-border);
+  color: var(--no-secondary);
+  font-size: 13px;
+}
+
+.continuity-shell .no-atlas-capabilities strong {
+  color: var(--no-text);
+  font-size: 12px;
+}
+
+@media (max-width: 850px) {
+  .continuity-shell .no-atlas-entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .continuity-shell .no-atlas-capabilities {
+    border-left: 0;
+    border-top: 1px solid var(--no-border);
+    padding: 18px 0 0;
+  }
+}

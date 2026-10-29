@@ -110,6 +110,42 @@
     });
   });
 
+  // Open the Canvas from the Atlas without fabricating an event
+  // selection or scrolling directly past it to the Inspector.
+  document.getElementById("noAtlasOpen")?.addEventListener(
+    "click", () => {
+      if (!continuity) return;
+
+      for (const section of document.querySelectorAll(
+        ".no-preview-view"
+      )) {
+        section.hidden = section !== continuity;
+      }
+
+      for (const navButton of document.querySelectorAll(
+        ".no-navigation [data-view]"
+      )) {
+        if (navButton.dataset.view === "atlas") {
+          navButton.setAttribute("aria-current", "page");
+        } else {
+          navButton.removeAttribute("aria-current");
+        }
+      }
+
+      continuity.querySelector("h1")?.focus({
+        preventScroll: true
+      });
+
+      requestAnimationFrame(() => {
+        continuity.querySelector(".no-canvas-region")
+          ?.scrollIntoView({
+            behavior: "auto",
+            block: "start"
+          });
+      });
+    }
+  );
+
   document.getElementById("noBackToAtlas")?.addEventListener(
     "click", () => {
       document.querySelector(
