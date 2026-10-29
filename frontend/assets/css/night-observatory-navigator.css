@@ -239,3 +239,62 @@
     transition: none;
   }
 }
+
+
+/* C2: Integrated Canvas controls and Navigator. */
+.continuity-shell .no-explore-tools {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.95fr) minmax(0, 1.3fr);
+  align-items: stretch;
+  gap: 14px;
+  margin: 18px 0 24px;
+}
+
+.continuity-shell .no-explore-tools .no-demo-mode {
+  align-content: start;
+  align-items: flex-start;
+  margin: 0;
+  padding: 16px;
+  background: var(--no-canvas);
+  border: 1px solid var(--no-border);
+  border-radius: var(--no-radius-panel);
+}
+
+.continuity-shell .no-explore-tools .no-demo-mode::before {
+  content: "HISTORICAL SCENARIOS";
+  flex-basis: 100%;
+  color: var(--no-information);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.continuity-shell .no-explore-tools .no-timeline-navigator {
+  position: static;
+  z-index: auto;
+  bottom: auto;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 14px;
+  box-shadow: none;
+  background: var(--no-canvas);
+}
+
+@media (max-width: 1150px) {
+  .continuity-shell .no-explore-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .continuity-shell .no-explore-tools {
+    gap: 10px;
+    margin: 14px 0 20px;
+  }
+
+  .continuity-shell .no-explore-tools .no-demo-mode,
+  .continuity-shell .no-explore-tools .no-timeline-navigator {
+    padding: 12px;
+  }
+}

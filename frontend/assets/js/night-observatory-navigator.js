@@ -254,10 +254,17 @@
 
   navigator.append(heading, map, hint);
 
-  const anchor = view.querySelector(".no-canvas-region")
-    || scroller;
+  const canvasRegion = view.querySelector(".no-canvas-region");
+  const scenarioControls = canvasRegion?.querySelector(".no-demo-mode");
 
-  anchor.after(navigator);
+  if (scenarioControls && scenarioControls.parentElement === canvasRegion) {
+    const tools = document.createElement("div");
+    tools.className = "no-explore-tools";
+    scenarioControls.before(tools);
+    tools.append(scenarioControls, navigator);
+  } else {
+    (canvasRegion || scroller).after(navigator);
+  }
 
   const eventPositions = new Map(
     layout.strands.flatMap(strand =>

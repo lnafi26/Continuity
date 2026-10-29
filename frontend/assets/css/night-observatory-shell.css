@@ -140,3 +140,21 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+
+/* C2 interface consolidation: reduce prototype header dominance. */
+.continuity-shell #view-continuity > .no-preview-heading {
+  margin: 10px 0;
+  font-size: clamp(28px, 2.5vw, 38px);
+  line-height: 1.17;
+}
+
+.continuity-shell #view-continuity > .no-preview-description {
+  max-width: 780px;
+  margin: 8px 0 12px;
+  line-height: 1.55;
+}
+
+.continuity-shell #view-continuity > .no-canvas-region {
+  margin-top: 16px;
+}
