@@ -12,12 +12,14 @@ source-revision semantics have been reviewed.
 ## Migration baseline status
 
 - The original initial schema exists in Supabase.
-- Supabase has no recorded project migration history.
+- The initial schema is recorded as applied remotely:
+  `20261016000000`.
 - B1 privilege hardening was applied manually and verified.
-- The initial migration must not be replayed against the
-  existing database.
-- A future versioned migration must represent B1 privileges
-  for new database environments.
-- Migration reconciliation requires separate verification.
+- Its reviewed migration is recorded as applied remotely:
+  `20261030212002`.
+- Both migration versions are reconciled between local and
+  remote history; neither was replayed during reconciliation.
+- The `processing_jobs` migration remains deferred and must
+  not be applied without separate authorization.
 
 Do not enable automated GitHub database deployments yet.
