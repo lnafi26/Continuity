@@ -38,6 +38,34 @@ assert.match(html, /id="noInspectorTitle"/);
 assert.match(html, /id="noInspectorEvidence"/);
 assert.match(html, /class="no-panel no-timeline-list"/);
 assert.match(css, /\.no-workbench\s*\{/);
-assert.match(css, /max-width: 1500px/);
+assert.match(css, /max-width: 1280px/);
+assert.match(
+  css,
+  /grid-template-columns: minmax\(0, 1fr\) minmax\(290px, 340px\)/
+);
 
 console.log("C2.3 historical workbench invariants passed.");
+
+
+// Compact exploration controls and independent Inspector.
+const navCss = read("assets/css/night-observatory-navigator.css");
+
+assert.match(
+  navCss,
+  /C2\.3 compact exploration toolbar/
+);
+
+assert.match(
+  navCss,
+  /grid-template-columns: minmax\(0, 1fr\)/
+);
+
+assert.match(
+  css,
+  /C2\.3 scrollable desktop Inspector/
+);
+
+assert.match(
+  css,
+  /max-height: calc\(100dvh - 40px\)/
+);

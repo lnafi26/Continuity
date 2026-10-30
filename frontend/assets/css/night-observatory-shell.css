@@ -275,7 +275,7 @@
   grid-column: 1 / -1;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1280px) {
   .continuity-shell .no-workbench {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -289,4 +289,46 @@
   .continuity-shell .no-workbench .no-event-inspector {
     min-height: 0;
   }
+}
+
+
+/* C2.3 scrollable desktop Inspector */
+@media (min-width: 1281px) {
+  .continuity-shell .no-workbench-inspector {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .continuity-shell .no-workbench-inspector-heading {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+}
+
+.continuity-shell .no-workbench-inspector
+.no-junction-inspector-view {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.continuity-shell .no-workbench-inspector
+.no-junction-inspector-view h3 {
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.continuity-shell .no-workbench-inspector
+.no-junction-inspector-section {
+  padding-top: 12px;
+  border-top: 1px solid var(--no-border);
+}
+
+.continuity-shell .no-workbench-inspector
+.no-junction-inspector-section li + li {
+  margin-top: 6px;
 }

@@ -244,7 +244,7 @@
 /* C2: Integrated Canvas controls and Navigator. */
 .continuity-shell .no-explore-tools {
   display: grid;
-  grid-template-columns: minmax(250px, 0.95fr) minmax(0, 1.3fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: 14px;
   margin: 18px 0 24px;
@@ -297,4 +297,32 @@
   .continuity-shell .no-explore-tools .no-timeline-navigator {
     padding: 12px;
   }
+}
+
+
+/* C2.3 compact exploration toolbar */
+.continuity-shell .no-explore-tools {
+  align-items: start;
+  gap: 10px;
+}
+
+.continuity-shell .no-explore-tools .no-demo-mode {
+  padding: 12px;
+  gap: 8px;
+  align-items: center;
+}
+
+.continuity-shell .no-explore-tools .no-demo-mode::before {
+  flex-basis: auto;
+  width: auto;
+  margin-right: 8px;
+}
+
+.continuity-shell .no-explore-tools .no-demo-mode a {
+  min-height: 36px;
+  padding: 7px 11px;
+}
+
+.continuity-shell .no-explore-tools .no-timeline-navigator {
+  padding: 12px 14px;
 }
