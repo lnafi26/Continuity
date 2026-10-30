@@ -19,13 +19,113 @@ jobs:
           HEAD_BRANCH: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           TARGET_REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          test "$HEAD_BRANCH" = "staging"
+          set -euo pipefail
           test "$HEAD_REPO" = "$TARGET_REPO"
+          case "$HEAD_BRANCH" in
+            staging)
+              ;;
+            feat/continuity-main-migration-sync)
+              test "$BASE_SHA" = "0928773103cb6808eb3b4afe5b4ad51d9f086925"
+              ;;
+            *)
+              echo "Unapproved production PR source" >&2
+              exit 1
+              ;;
+          esac
       - name: Checkout proposed merge commit
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Validate one-time migration-only repair
+        if: github.head_ref == 'feat/continuity-main-migration-sync'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          BASE = "0928773103cb6808eb3b4afe5b4ad51d9f086925"
+          STAGING = "d85650298c23301b625823cbb8b5d943656e4a7d"
+          HEAD = os.environ["HEAD_SHA"]
+
+          assert os.environ["BASE_SHA"] == BASE
+
+          def git_bytes(*args):
+              return subprocess.check_output(["git", *args])
+
+          def show(ref, path):
+              return git_bytes("show", f"{ref}:{path}")
+
+          for ref in (BASE, STAGING, HEAD):
+              git_bytes("cat-file", "-e", f"{ref}^{{commit}}")
+
+          expected = {
+              ".github/workflows/continuity-production-checks.yml",
+              "backend/database/deferred/20261017000000_processing_jobs.sql",
+              "backend/database/deferred/README.md",
+              "supabase/.gitignore",
+              "supabase/config.toml",
+              "supabase/migrations/20261017000000_processing_jobs.sql",
+              "supabase/migrations/20261030212002_continuity_b1_privilege_hardening.sql",
+          }
+
+          changed = set(
+              git_bytes(
+                  "diff", "--name-only", "--no-renames", BASE, HEAD
+              ).decode().splitlines()
+          )
+
+          assert changed == expected, (
+              f"Unexpected PR file changes: {changed ^ expected}"
+          )
+
+          for path in (
+              "backend/database/deferred/README.md",
+              "supabase/.gitignore",
+              "supabase/config.toml",
+              "supabase/migrations/20261030212002_continuity_b1_privilege_hardening.sql",
+          ):
+              assert show(HEAD, path) == show(STAGING, path), path
+
+          assert show(
+              HEAD,
+              "backend/database/deferred/20261017000000_processing_jobs.sql",
+          ) == show(
+              BASE,
+              "supabase/migrations/20261017000000_processing_jobs.sql",
+          )
+
+          initial = "supabase/migrations/20261016000000_initial_schema.sql"
+          assert show(HEAD, initial) == show(BASE, initial)
+
+          migration_paths = set(
+              git_bytes(
+                  "ls-tree", "-r", "--name-only", HEAD,
+                  "--", "supabase/migrations"
+              ).decode().splitlines()
+          )
+
+          assert migration_paths == {
+              initial,
+              "supabase/migrations/20261030212002_continuity_b1_privilege_hardening.sql",
+          }
+
+          release_path = "deploy/production-release.json"
+
+          assert show(HEAD, release_path) == show(BASE, release_path)
+          assert json.loads(show(HEAD, release_path))["mode"] == "holding"
+
+          print("One-time migration-only PR scope verified.")
+          print("Production holding configuration unchanged.")
+          PY
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
