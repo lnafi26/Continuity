@@ -8,14 +8,20 @@ versions recorded as applied:
 - 20261016000000_initial_schema
 - 20261030212002_continuity_b1_privilege_hardening
 
-The GitHub staging branch contains those two migrations.
+Both GitHub `main` and `staging` now contain exactly
+those two approved migrations.
 
-The GitHub main branch still contains the deferred
-20261017000000_processing_jobs.sql migration and does
-not yet have the reconciled B1 migration.
+PR #6 reconciled `main` at commit `1556b51`.
+The unapproved `processing_jobs` migration remains preserved
+outside Supabase's migration directory.
 
-Do not enable the Supabase "Deploy to production" option
-while this mismatch exists.
+The GitHub integration has been connected with
+"Deploy to production" OFF and automatic branching disabled.
+
+Automatic database deployment remains NOT AUTHORIZED.
+A separate review and explicit approval are required
+before enabling either deployment automation or
+automatic database branching.
 
 Integration constraints:
 
