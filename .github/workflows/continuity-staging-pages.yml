@@ -42,6 +42,8 @@ jobs:
         run: node --test frontend/tests/night-observatory-*.test.cjs
       - name: Run B1/B2 database security tests
         run: python3 -m unittest discover -s backend/tests -p 'test_b*_*.py' -v
+      - name: Run B3 read-only memory tests
+        run: python3 -m unittest discover -s backend/tests -p 'test_memory_context.py' -v
       - name: Run production release safeguard tests
         run: python3 -m unittest discover -s scripts/tests -p 'test_production_site.py' -v
       - name: Build isolated Pages bundle from reviewed assets
