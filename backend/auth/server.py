@@ -28,6 +28,7 @@ from urllib.parse import urlsplit
 # Allow running directly (python3 backend/auth/server.py): make sibling modules
 # importable regardless of the caller's working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import requests
 from flask import Flask, jsonify, redirect, request
@@ -40,6 +41,16 @@ from supabase_auth import (
     AuthenticationError,
     AuthenticationUnavailable,
     verify_access_token,
+)
+
+
+from backend.auth.supabase_auth import (
+    AuthenticationError as MemoryAuthenticationError,
+    AuthenticationUnavailable as MemoryAuthenticationUnavailable,
+)
+from backend.memory.supabase_reader import (
+    MemoryReadUnavailable,
+    fetch_project_context,
 )
 
 config = load_config()
@@ -83,6 +94,9 @@ def _add_cors_headers(resp):
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
         resp.headers["Vary"] = "Origin"
+    if request.path.startswith("/memory/projects/"):
+        resp.headers["Cache-Control"] = "private, no-store"
+        resp.headers["Pragma"] = "no-cache"
     return resp
 
 # Short-lived CSRF/state store: maps the opaque `state` value we send to Google
@@ -178,6 +192,51 @@ def auth_session():
     """Safe read-only endpoint for verifying a live Supabase bearer token."""
     user_id = _authenticated_user()
     return jsonify(ok=True, user_id=user_id)
+
+
+@app.get("/memory/projects/<project_id>/context")
+def memory_project_context(project_id):
+    """Authenticated read-only project context, scoped by Supabase RLS."""
+    if not config.auth_ready:
+        return jsonify(
+            ok=False,
+            error="Authentication service not configured.",
+        ), 503
+
+    try:
+        context = fetch_project_context(
+            request.headers.get("Authorization"),
+            supabase_url=config.supabase_url,
+            publishable_key=config.supabase_publishable_key,
+            project_id=project_id,
+        )
+    except MemoryAuthenticationError:
+        return jsonify(
+            ok=False,
+            error="Authentication required or session expired.",
+        ), 401
+    except MemoryAuthenticationUnavailable:
+        return jsonify(
+            ok=False,
+            error="Authentication service unavailable.",
+        ), 503
+    except ValueError:
+        return jsonify(
+            ok=False,
+            error="Invalid project ID.",
+        ), 400
+    except (LookupError, PermissionError):
+        return jsonify(
+            ok=False,
+            error="Project not found or inaccessible.",
+        ), 404
+    except MemoryReadUnavailable:
+        return jsonify(
+            ok=False,
+            error="Project context temporarily unavailable.",
+        ), 503
+
+    return jsonify(ok=True, context=context)
 
 
 @app.get("/")

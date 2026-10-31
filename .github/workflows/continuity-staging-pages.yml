@@ -31,6 +31,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install authenticated memory test dependencies
+        run: python3 -m pip install -r backend/requirements-memory-ci.txt
       - name: Check JavaScript syntax
         shell: bash
         run: |
@@ -43,7 +49,7 @@ jobs:
       - name: Run B1/B2 database security tests
         run: python3 -m unittest discover -s backend/tests -p 'test_b*_*.py' -v
       - name: Run B3 read-only memory tests
-        run: python3 -m unittest discover -s backend/tests -p 'test_memory_context.py' -v
+        run: python3 -m unittest discover -s backend/tests -p 'test_memory_*.py' -v
       - name: Run production release safeguard tests
         run: python3 -m unittest discover -s scripts/tests -p 'test_production_site.py' -v
       - name: Build isolated Pages bundle from reviewed assets
