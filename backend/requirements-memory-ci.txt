@@ -1,0 +1,8 @@
+# Minimal dependencies for authenticated memory and route tests.
+# Does not install embedding models or the legacy inference pipeline.
+Flask>=3.0,<4
+google-auth-oauthlib>=1.2,<2
+python-dotenv>=1.0,<2
+requests>=2.31,<3
+psycopg[binary]>=3.2,<4
+cryptography>=42,<44

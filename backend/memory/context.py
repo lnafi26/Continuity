@@ -76,7 +76,7 @@ def build_project_context(
                 str(source_id) if source_id is not None else None
             ),
             "source_link_status": (
-                link_status.get(str(source_id), "unlinked")
+                link_status.get(str(source_id), "link_not_in_snapshot")
                 if source_id is not None else "no_source"
             ),
             "evidence_verification": "not_verified",
@@ -123,6 +123,7 @@ def build_project_context(
         "open_actions": open_actions[:20],
         "warnings": [
             "Source links do not verify extracted claims.",
+            "A missing link in a bounded snapshot does not prove that no association exists.",
             "Context must be retrieved under authenticated RLS.",
             "This snapshot is not durable project memory.",
         ],

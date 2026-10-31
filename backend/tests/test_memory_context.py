@@ -113,13 +113,13 @@ class MemoryContextTests(unittest.TestCase):
             ["1", "99"]
         )
 
-    def test_unlinked_event_remains_unverified(self):
+    def test_missing_snapshot_link_remains_unverified(self):
         project, events, actions, links = fixture()
         result = snapshot(project, events, actions, [])
 
         event = result["recent_events"][0]
         self.assertEqual(
-            event["source_link_status"], "unlinked"
+            event["source_link_status"], "link_not_in_snapshot"
         )
         self.assertEqual(
             event["evidence_verification"], "not_verified"

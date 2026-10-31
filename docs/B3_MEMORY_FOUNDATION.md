@@ -39,6 +39,27 @@ not a substitute for database authorization.
 The prototype does not create durable memory, verify source claims,
 or expose an API.
 
+## B3.7 authenticated read-only retrieval
+
+The local Flask backend now defines:
+
+`GET /memory/projects/<project_id>/context`
+
+This route:
+
+- Requires a Supabase-authenticated end-user bearer token.
+- Uses the user's token with the publishable API key.
+- Relies on database RLS and explicitly scopes project queries.
+- Retrieves at most 20 rows from each collection.
+- Labels returned context as bounded and potentially incomplete.
+- Returns no-store responses and sanitized errors.
+- Performs no database writes or remote inference.
+
+The HTTP endpoint is not connected to the frontend and the
+Flask backend has not been deployed by the static Pages workflow.
+All B3.7 retrieval tests are mocked; a live end-user retrieval
+test is still required before claiming end-to-end readiness.
+
 ## Planned durable memory
 
 A separately reviewed migration may introduce versioned,
