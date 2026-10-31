@@ -1,0 +1,76 @@
+{
+  "fixture_type": "fictional_test_data_only",
+  "project": {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "name": "Fictional Lunar Research Observatory",
+    "summary": "An imaginary lunar research software project.",
+    "origin": "user"
+  },
+  "events": [
+    {
+      "id": 101,
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "event_type": "decision",
+      "title": "Approve fictional observation dashboard",
+      "event_date": "2026-10-30T14:00:00Z",
+      "source_item_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "user_edited": false
+    },
+    {
+      "id": 102,
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "event_type": "milestone",
+      "title": "Complete imaginary sensor prototype",
+      "event_date": "2026-10-29T10:15:00Z",
+      "source_item_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "user_edited": false
+    },
+    {
+      "id": 103,
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "event_type": "update",
+      "title": "Review imaginary telemetry requirements",
+      "event_date": "2026-10-27T18:30:00Z",
+      "source_item_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      "user_edited": false
+    }
+  ],
+  "actions": [
+    {
+      "id": 201,
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "title": "Design fictional telemetry interface",
+      "status": "not_started",
+      "completed": false,
+      "due_date": "2026-11-02"
+    },
+    {
+      "id": 202,
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "title": "Validate simulated sensor readings",
+      "status": "in_progress",
+      "completed": false,
+      "due_date": "2026-11-05"
+    }
+  ],
+  "source_links": [
+    {
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "source_item_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "review_status": "confirmed"
+    },
+    {
+      "user_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "project_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "source_item_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "review_status": "pending"
+    }
+  ]
+}
