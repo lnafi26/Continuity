@@ -107,7 +107,7 @@
       <div class="content" id="projects" hidden>
         <div id="projectsGridView">
           <div class="workspace-heading">
-            <div><p class="eyebrow">ALL PROJECTS</p><h2>Projects</h2><p>Everything ThreadLinePMA has grouped from your connected sources — not just what's changed recently.</p></div>
+            <div><p class="eyebrow">ALL PROJECTS</p><h2>Projects</h2><p>Projects you create or bring in from connected sources.</p></div><button type="button" class="button primary" id="manualNewProject">+ New project</button>
           </div>
           <section class="panel projects-panel">
             <div id="projectsList" class="projects-grid"></div>
@@ -135,6 +135,27 @@
     <form id="editItemForm"><header><div><p class="eyebrow">VERIFY OR CORRECT</p><h2 id="editItemTitle">Edit</h2></div><button type="button" class="icon close-dialog">×</button></header><p class="help" id="editItemHelp"></p><div class="form-grid" id="editItemFields"></div><footer><button type="button" class="button secondary close-dialog">Cancel</button><button class="button primary">Save</button></footer></form>
   </dialog>
 
+  <dialog id="manualEntryDialog" aria-labelledby="manualEntryHeading">
+    <form id="manualEntryForm">
+      <header><div><p class="eyebrow">MANUAL PROJECT MEMORY</p><h2 id="manualEntryHeading">New project</h2></div></header>
+      <p class="help" id="manualEntryHelp">Save a record to your account.</p>
+      <div class="form-grid" id="manualProjectFields">
+        <label class="full">Project name<input id="manualProjectName" maxlength="120" autocomplete="off"></label>
+        <label class="full">Summary<textarea id="manualProjectSummary" maxlength="2000" rows="3"></textarea></label>
+      </div>
+      <div class="form-grid" id="manualRecordFields" hidden>
+        <label class="full">Title<input id="manualRecordTitle" maxlength="200" autocomplete="off"></label>
+      </div>
+      <div class="form-grid" id="manualDecisionFields" hidden>
+        <label class="full">Details<textarea id="manualDecisionBody" maxlength="5000" rows="4"></textarea></label>
+      </div>
+      <div class="form-grid" id="manualTaskFields" hidden>
+        <label class="full">Due date (optional)<input type="date" id="manualTaskDue"></label>
+      </div>
+      <p class="auth-message" id="manualEntryStatus" role="status" aria-live="polite"></p>
+      <footer><button class="button secondary" type="button" id="manualEntryCancel">Cancel</button><button class="button primary" type="submit" id="manualEntrySubmit">Save to Supabase</button></footer>
+    </form>
+  </dialog>
   <dialog id="sourcesDialog">
     <form method="dialog"><header><div><p class="eyebrow">CONNECTED APPS</p><h2>Connect your workspace</h2></div><button value="cancel" class="icon">×</button></header><p class="help">Connect Gmail and Google Calendar with read-only permissions. Automatic imports are currently disabled, so connecting an account will not start importing data. You can still upload files separately.</p><div id="connectorList"></div><footer><button value="done" class="button primary">Done</button></footer></form>
   </dialog>
@@ -310,5 +331,6 @@
   <script src="config/supabase-config.js"></script>
   <script src="assets/js/dashboard.js?v=47"></script>
   <script src="assets/js/auth.js?v=51"></script>
+  <script src="assets/js/manual-projects.js?v=1"></script>
 </body>
 </html>

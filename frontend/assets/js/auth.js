@@ -629,6 +629,15 @@
     }
   }
 
+  // User-initiated manual records refresh the existing Supabase-backed dashboard.
+  window.refreshProjectData = async () => {
+    const { data, error } = await db.auth.getUser();
+    if (error || !data?.user?.id || data.user.id !== displayedUserId) {
+      throw new Error("Signed-in account changed. Reload and sign in again.");
+    }
+    await loadProjectData(data.user, authGeneration);
+  };
+
   // Stage 8: board drag-and-drop is a correction (edit_action), not the
   // primary interaction -- it overrides the AI-inferred status/backlog and
   // logs to user_corrections for evaluation, same as any other edit.

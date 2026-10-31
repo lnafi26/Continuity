@@ -295,6 +295,7 @@ function goToProject(projectId) {
   showView("projects");
   openProjectPage(projectId);
 }
+window.openProjectById = goToProject;
 
 function renderProjects(filter = "all") {
   return; // Stage 7: the project grid is replaced by the chronological timeline.
@@ -1334,6 +1335,7 @@ function _openProjectPage(bodyHtml) {
   const host = $("#projectDetailBody");
   if (host) host.innerHTML = bodyHtml;
   _wireDrawerInteractions();
+  document.dispatchEvent(new CustomEvent("continuity:project-detail", { detail: { projectId: _drawerContext?.projectId || null } }));
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
