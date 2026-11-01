@@ -182,6 +182,11 @@
       mapWindow = null;
       const project = projectMap[selector.value] || null;
       model = buildCanvasModel(project, live.normalizedRecords);
+      // Optional, explicitly scoped relationship data only. No inference.
+      const relationshipVisuals = hostWindow.ContinuityRecordRelationshipVisuals;
+      const relationshipPlan = relationshipVisuals
+        ? relationshipVisuals.plan(project, model, hostWindow.ContinuityRecordRelationships)
+        : { links: [], withheld: [] };
       const sub = create('p', 'lc-navigator-caption',
         'Navigator · Real records only · Chronology is not a causal link');
       navigator.append(sub);
@@ -230,6 +235,10 @@
         laneLabel.style.top = y - 38 + 'px';
         stage.append(laneLabel);
       }
+      // Draw connectors behind nodes, without changing the Canvas record layout.
+      if (relationshipVisuals && relationshipPlan.links.length) {
+        relationshipVisuals.render(doc, stage, model, relationshipPlan.links);
+      }
       if (!model.nodes.length) {
         const empty = create('p', 'lc-empty', 'No dated records for this project yet. Add a decision or a dated task in Projects.');
         empty.style.top = '185px';
@@ -257,6 +266,11 @@
         jump.dataset.loJump = node.key;
         jump.addEventListener('click', () => focusNode(node, true));
         navigator.append(jump);
+      }
+      if (relationshipPlan.links.length) {
+        navigator.append(create('p', 'lc-navigator-note',
+          `${relationshipPlan.links.length} documented relationship(s) displayed. ` +
+          'Connections are explicit, not inferred from the timeline.'));
       }
       if (model.undatedCount) {
         navigator.append(create('p', 'lc-navigator-note',

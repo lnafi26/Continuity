@@ -1,0 +1,18 @@
+/* Read-only documented relationship connectors; never inferred links. */
+.lc-relationship-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 0;
+}
+.lc-relationship-path {
+  stroke: #6479a2;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  opacity: .82;
+}
+.lc-relationship-dependency { stroke: #7180b3; }
+.lc-relationship-handoff { stroke: #4f9294; stroke-dasharray: 9 5; }
+.lc-relationship-divergence { stroke: #a37757; stroke-dasharray: 4 5; }
+.lc-relationship-convergence { stroke: #8b76ae; }
