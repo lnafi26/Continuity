@@ -57,6 +57,27 @@
     };
   }
 
+  // Navigator positions are a spatial index, not a claim of causation.
+  function navigatorMarkers(model) {
+    if (!model || !Array.isArray(model.nodes)) return [];
+    const width = Math.max(1, Number(model.width) || 1);
+    return model.nodes.map(node => ({
+      key: node.key,
+      kind: node.kind,
+      title: node.record.title,
+      position: Math.max(0, Math.min(100, Math.round((node.x + 91) / width * 1000) / 10))
+    }));
+  }
+
+  function adjacentNode(model, key, step) {
+    if (!model || !Array.isArray(model.nodes) || !model.nodes.length) return null;
+    const ordered = model.nodes.slice().sort((a, b) =>
+      a.x - b.x || a.y - b.y || a.key.localeCompare(b.key));
+    const index = ordered.findIndex(n => n.key === key);
+    if (index < 0) return step < 0 ? ordered.at(-1) : ordered[0];
+    return ordered[(index + (step < 0 ? -1 : 1) + ordered.length) % ordered.length];
+  }
+
   function mount(doc, hostWindow) {
     const live = hostWindow.ContinuityLiveObservatory;
     const timeline = doc.getElementById('observatoryCanvas');
@@ -69,8 +90,11 @@
     const zoomOut = doc.getElementById('loZoomOut');
     const zoomIn = doc.getElementById('loZoomIn');
     const zoomReset = doc.getElementById('loZoomReset');
+    const previous = doc.getElementById('loPreviousNode');
+    const next = doc.getElementById('loNextNode');
     if (!live || !timeline || !selector || !canvasRoot || !viewport ||
-        !stage || !navigator || buttons.length !== 2 || !zoomOut || !zoomIn || !zoomReset) return;
+        !stage || !navigator || buttons.length !== 2 || !zoomOut || !zoomIn ||
+        !zoomReset || !previous || !next) return;
 
     const originalRender = live.render;
     if (typeof originalRender !== 'function') return;
@@ -85,7 +109,31 @@
     let mode = 'timeline';
     let zoom = 1;
     let chosen = null;
+    let mapTrack = null;
+    let mapWindow = null;
     const keyFor = n => n.key;
+
+    function syncMapViewport() {
+      if (!model || !mapTrack || !mapWindow) return;
+      const total = Math.max(1, model.width * zoom);
+      const visible = Math.min(total, Math.max(0, viewport.clientWidth));
+      const left = Math.max(0, Math.min(total - visible, viewport.scrollLeft));
+      mapWindow.style.left = (left / total * 100).toFixed(2) + '%';
+      mapWindow.style.width = (visible / total * 100).toFixed(2) + '%';
+    }
+
+    function syncSelection() {
+      stage.querySelectorAll('[data-lo-node]').forEach(el => {
+        el.setAttribute('aria-pressed', String(el.dataset.loNode === chosen));
+      });
+      navigator.querySelectorAll('[data-lo-jump]').forEach(el => {
+        el.setAttribute('aria-current', el.dataset.loJump === chosen ? 'true' : 'false');
+      });
+      navigator.querySelectorAll('[data-lo-map]').forEach(el => {
+        el.setAttribute('aria-pressed', String(el.dataset.loMap === chosen));
+      });
+      previous.disabled = next.disabled = !model?.nodes?.length;
+    }
 
     function setMode(next) {
       mode = next === 'canvas' ? 'canvas' : 'timeline';
@@ -109,13 +157,12 @@
       if (output) output.textContent = Math.round(zoom * 100) + '%';
       zoomOut.disabled = zoom <= 0.7;
       zoomIn.disabled = zoom >= 1.8;
+      syncMapViewport();
     }
 
     function focusNode(node, fromNavigator = false) {
       chosen = keyFor(node);
-      stage.querySelectorAll('[data-lo-node]').forEach(el => {
-        el.setAttribute('aria-pressed', String(el.dataset.loNode === chosen));
-      });
+      syncSelection();
       if (typeof live.inspectRecord === 'function') live.inspectRecord(node.record);
       const target = [...stage.querySelectorAll('[data-lo-node]')]
         .find(el => el.dataset.loNode === chosen);
@@ -124,17 +171,49 @@
           node.x * zoom - viewport.clientWidth / 2 + 85 * zoom);
         viewport.scrollTop = Math.max(0, node.y * zoom - 35 * zoom);
         target.focus({ preventScroll: true });
+        syncMapViewport();
       }
     }
 
     function draw() {
       stage.replaceChildren();
       navigator.replaceChildren();
+      mapTrack = null;
+      mapWindow = null;
       const project = projectMap[selector.value] || null;
       model = buildCanvasModel(project, live.normalizedRecords);
       const sub = create('p', 'lc-navigator-caption',
         'Navigator · Real records only · Chronology is not a causal link');
       navigator.append(sub);
+      mapTrack = create('div', 'lc-mini-track');
+      mapTrack.setAttribute('role', 'group');
+      mapTrack.setAttribute('aria-label', 'Navigator overview. Dots are saved project records.');
+      mapWindow = create('div', 'lc-mini-window');
+      mapWindow.setAttribute('aria-hidden', 'true');
+      const mapHistory = create('span', 'lc-mini-lane lc-mini-history', 'Recorded');
+      const mapScheduled = create('span', 'lc-mini-lane lc-mini-schedule', 'Planned');
+      mapTrack.append(mapHistory, mapScheduled, mapWindow);
+      for (const marker of navigatorMarkers(model)) {
+        const target = model.nodes.find(node => node.key === marker.key);
+        const dot = create('button', 'lc-mini-dot lc-mini-' + marker.kind);
+        dot.type = 'button';
+        dot.dataset.loMap = marker.key;
+        dot.style.left = marker.position + '%';
+        dot.setAttribute('aria-label', marker.kind + ' · ' + marker.title);
+        dot.setAttribute('aria-pressed', 'false');
+        dot.title = marker.title;
+        dot.addEventListener('click', () => focusNode(target, true));
+        mapTrack.append(dot);
+      }
+      mapTrack.addEventListener('click', event => {
+        if (!model || !model.nodes.length || event.target.closest('button')) return;
+        const rect = mapTrack.getBoundingClientRect();
+        if (!rect.width) return;
+        const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        viewport.scrollLeft = fraction * model.width * zoom - viewport.clientWidth / 2;
+        syncMapViewport();
+      });
+      navigator.append(mapTrack);
       const labels = [
         ['history', 'RECORDED HISTORY'],
         ['schedule', 'PLANNED DEADLINES']
@@ -175,6 +254,7 @@
         const jump = create('button', 'lc-navigator-item',
           node.record.date + ' · ' + node.record.title);
         jump.type = 'button';
+        jump.dataset.loJump = node.key;
         jump.addEventListener('click', () => focusNode(node, true));
         navigator.append(jump);
       }
@@ -186,6 +266,7 @@
       if (hidden) navigator.append(create('p', 'lc-navigator-note',
         `${hidden} earlier dated records omitted from Canvas for performance. Timeline retains them.`));
       scale();
+      syncSelection();
     }
 
     live.render = (projects = {}) => {
@@ -216,9 +297,28 @@
       viewport.scrollTop = 0;
       scale();
     });
+    function navigate(step) {
+      const target = adjacentNode(model, chosen, step);
+      if (target) focusNode(target, true);
+    }
+    previous.addEventListener('click', () => navigate(-1));
+    next.addEventListener('click', () => navigate(1));
+    viewport.addEventListener('keydown', event => {
+      if (mode !== 'canvas' || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        navigate(event.key === 'ArrowRight' ? 1 : -1);
+      } else if ((event.key === 'Home' || event.key === 'End') && model?.nodes?.length) {
+        event.preventDefault();
+        const ordered = model.nodes.slice().sort((a,b) => a.x - b.x || a.y - b.y);
+        focusNode(event.key === 'Home' ? ordered[0] : ordered.at(-1), true);
+      }
+    });
+    viewport.addEventListener('scroll', syncMapViewport, { passive: true });
+    hostWindow.addEventListener('resize', syncMapViewport);
     setMode('timeline');
     draw();
   }
 
-  return { buildCanvasModel, mount };
+  return { buildCanvasModel, navigatorMarkers, adjacentNode, mount };
 });

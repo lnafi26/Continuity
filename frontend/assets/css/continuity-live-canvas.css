@@ -34,3 +34,20 @@
 .lc-navigator-item:hover { background:#304c64; }
 .lc-navigator-note { width:100%; color:#a6b8c9; margin:0; font-size:11px; }
 @media(max-width:800px) { .lo-display-help{width:100%} .lo-canvas-mode{padding:10px} }
+
+/* Live Navigator: spatial overview, selected records, and visible viewport. */
+.lc-navigate-divider { display:inline-block; width:1px; height:24px; background:#43586e; margin:0 4px; }
+.lc-keyboard-hint { color:#91acc2; font-size:11px; line-height:1.5; margin:13px 0 0; }
+.lc-mini-track { position:relative; width:100%; height:104px; background:#0a1829; border:1px solid #41546b; border-radius:10px; overflow:hidden; cursor:crosshair; }
+.lc-mini-track::before,.lc-mini-track::after { content:''; position:absolute; left:10px; right:10px; height:1px; background:#344d65; pointer-events:none; }
+.lc-mini-track::before { top:32%; }
+.lc-mini-track::after { top:73%; background:#6e594d; }
+.lc-mini-lane { position:absolute; left:9px; font-size:10px; color:#91b3c7; pointer-events:none; }
+.lc-mini-history { top:5px; }
+.lc-mini-schedule { top:57%; }
+.lc-mini-window { position:absolute; top:0; bottom:0; min-width:2px; background:rgba(143,190,219,.12); border:1px solid #9bbfd6; pointer-events:none; z-index:1; }
+.lc-mini-dot { position:absolute; top:31%; width:11px; height:11px; border:2px solid #122538; background:#8fcbdc; border-radius:50%; transform:translate(-50%,-50%); z-index:2; padding:0; }
+.lc-mini-dot.lc-mini-schedule { top:73%; background:#e1b58b; }
+.lc-mini-dot[aria-pressed="true"] { box-shadow:0 0 0 3px #fff; z-index:3; }
+.lc-navigator-item[aria-current="true"] { border-color:#bbdff1; background:#2c4a61; }
+.lc-mini-dot:focus-visible { outline:2px solid #fff; outline-offset:2px; }

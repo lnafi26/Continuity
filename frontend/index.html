@@ -7,7 +7,7 @@
   <title>ThreadLinePMA | AI Project Manager Assistant</title>
   <link rel="stylesheet" href="assets/css/styles.css?v=48">
   <link rel="stylesheet" href="assets/css/continuity-live-observatory.css?v=1">
-  <link rel="stylesheet" href="assets/css/continuity-live-canvas.css?v=1">
+  <link rel="stylesheet" href="assets/css/continuity-live-canvas.css?v=2">
 </head>
 <body class="auth-pending">
   <div class="app">
@@ -149,6 +149,9 @@
                     <output id="loZoomValue">100%</output>
                     <button type="button" id="loZoomIn" aria-label="Zoom in">+</button>
                     <button type="button" id="loZoomReset">Reset</button>
+                    <span class="lc-navigate-divider" aria-hidden="true"></span>
+                    <button type="button" id="loPreviousNode" aria-label="Previous project record" title="Previous record (left arrow)">←</button>
+                    <button type="button" id="loNextNode" aria-label="Next project record" title="Next record (right arrow)">→</button>
                   </div>
                 </header>
                 <div class="lo-canvas-viewport" id="loCanvasViewport" tabindex="0" aria-label="Scrollable date-aligned project Canvas">
@@ -156,6 +159,7 @@
                     <div class="lo-canvas-stage" id="loCanvasStage"></div>
                   </div>
                 </div>
+                <p class="lc-keyboard-hint">Select a node, use ← / → to move through records, or select a dot in the Navigator. Home / End jumps to either end.</p>
                 <nav class="lo-canvas-navigator" id="loCanvasNavigator" aria-label="Canvas record navigator"></nav>
               </section>
             </div>
@@ -392,7 +396,7 @@
   <script src="config/supabase-config.js"></script>
   <script src="assets/js/dashboard.js?v=47"></script>
   <script src="assets/js/continuity-live-observatory.js?v=1"></script>
-  <script src="assets/js/continuity-live-canvas.js?v=1"></script>
+  <script src="assets/js/continuity-live-canvas.js?v=2"></script>
   <script src="assets/js/auth.js?v=51"></script>
   <script src="assets/js/manual-projects.js?v=1"></script>
 </body>
