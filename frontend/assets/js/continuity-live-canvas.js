@@ -109,6 +109,7 @@
     let mode = 'timeline';
     let zoom = 1;
     let chosen = null;
+    let relationButtons = [];
     let mapTrack = null;
     let mapWindow = null;
     const keyFor = n => n.key;
@@ -161,6 +162,7 @@
     }
 
     function focusNode(node, fromNavigator = false) {
+      for (const button of relationButtons) button.setAttribute('aria-pressed', 'false');
       chosen = keyFor(node);
       syncSelection();
       if (typeof live.inspectRecord === 'function') live.inspectRecord(node.record);
@@ -178,6 +180,7 @@
     function draw() {
       stage.replaceChildren();
       navigator.replaceChildren();
+      relationButtons = [];
       mapTrack = null;
       mapWindow = null;
       const project = projectMap[selector.value] || null;
@@ -271,6 +274,19 @@
         navigator.append(create('p', 'lc-navigator-note',
           `${relationshipPlan.links.length} documented relationship(s) displayed. ` +
           'Connections are explicit, not inferred from the timeline.'));
+      }
+      // Only prevalidated, scoped Canvas relationships get Inspector controls.
+      const relationInspector = hostWindow.ContinuityRelationshipInspector;
+      if (relationInspector && relationshipPlan.links.length) {
+        relationButtons = relationInspector.attach(doc, navigator,
+          relationshipPlan.links, model, (link, info) => {
+            chosen = null;
+            syncSelection();
+            relationInspector.inspect(doc, doc.getElementById('observatoryInspector'), link, model);
+            viewport.scrollLeft = Math.max(0,
+              info.midpoint * zoom - viewport.clientWidth / 2 + 91 * zoom);
+            syncMapViewport();
+          });
       }
       if (model.undatedCount) {
         navigator.append(create('p', 'lc-navigator-note',

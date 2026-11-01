@@ -1,0 +1,7 @@
+/* Read-only relationship navigation, reusing Observatory's existing typography. */
+.lc-relation-list-title { margin-top: 12px; }
+.lc-relation-jump { text-align: left; white-space: normal; }
+.lc-relation-jump[aria-pressed="true"] {
+  outline: 2px solid var(--accent, #6479a2);
+  outline-offset: 2px;
+}
