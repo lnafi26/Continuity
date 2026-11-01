@@ -267,7 +267,7 @@ const $ = (s, r = document) => r.querySelector(s),
 
 // Top-level views: Overview (catch-up, read-only), Actions (board + upcoming),
 // Projects (the one place you verify/fix/check things off).
-const VIEW_IDS = ["overview", "actions", "projects"];
+const VIEW_IDS = ["overview", "actions", "projects", "observatory"];
 function showView(target) {
   $$(".nav[data-target]").forEach((n) => n.classList.toggle("active", n.dataset.target === target));
   VIEW_IDS.forEach((id) => {
@@ -1405,6 +1405,7 @@ window.setTimelineData = ({ all = [], projects = {} } = {}) => {
   allItems = all;
   projectIndex = projects || {};
   renderProjectsList();
+  window.ContinuityLiveObservatory?.render(projectIndex);
 };
 
 // Populate the summary tiles + sidebar counts from real data.

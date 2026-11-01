@@ -6,6 +6,7 @@
   <meta name="description" content="Project memory dashboard prototype">
   <title>ThreadLinePMA | AI Project Manager Assistant</title>
   <link rel="stylesheet" href="assets/css/styles.css?v=48">
+  <link rel="stylesheet" href="assets/css/continuity-live-observatory.css?v=1">
 </head>
 <body class="auth-pending">
   <div class="app">
@@ -13,6 +14,7 @@
       <a class="brand" href="#"><span class="logo">≋</span> ThreadLinePMA</a>
       <nav aria-label="Primary navigation">
         <button class="nav active" data-target="overview"><span>⌂</span>Overview</button>
+        <button class="nav" data-target="observatory"><span>✦</span>Observatory</button>
         <button class="nav" data-target="projects"><span>▦</span>Projects <b id="navProjectCount">0</b></button>
         <button class="nav" data-target="actions"><span>✓</span>My Task Board <b class="warn" id="navActionCount">0</b></button>
         <button class="nav" id="sourcesNav"><span>↗</span>Sources</button>
@@ -101,6 +103,38 @@
         <section class="panel upcoming-panel">
           <div class="section-head"><div><h2>Upcoming</h2><p>Meetings and deadlines ahead</p></div></div>
           <div id="upcomingList"></div>
+        </section>
+      </div>
+
+      <div class="content" id="observatory" hidden>
+        <section class="lo-workspace" id="liveObservatory" aria-label="Live project observatory">
+          <header class="lo-top">
+            <div>
+              <p class="lo-kicker">CONTINUITY / NIGHT OBSERVATORY · LIVE DATA</p>
+              <h2>Project histories, in focus</h2>
+              <p class="lo-description">Browse actual project records saved to your account. Recorded events and planned task deadlines remain separate; nothing here is generated or inferred.</p>
+            </div>
+            <div class="lo-selector">
+              <label for="observatoryProjectSelect">Choose project</label>
+              <select id="observatoryProjectSelect" aria-label="Choose project"></select>
+            </div>
+          </header>
+          <div class="lo-context">
+            <div>
+              <p class="lo-kicker">CURRENT PROJECT</p>
+              <h3 id="observatoryProjectTitle">Loading project</h3>
+              <p id="observatoryProjectSummary"></p>
+            </div>
+            <div class="lo-context-actions">
+              <span class="lo-pill" id="observatoryRecordCount">0 records</span>
+              <button type="button" class="lo-project-button" id="observatoryOpenProject">Open project ↗</button>
+            </div>
+          </div>
+          <div class="lo-grid">
+            <div class="lo-canvas" id="observatoryCanvas" aria-label="Project timeline"></div>
+            <aside class="lo-inspector" id="observatoryInspector" aria-label="Selected record details"></aside>
+          </div>
+          <p class="lo-bottom-note">Read-only Observatory view · Data loaded through your signed-in dashboard session · The public synthetic preview remains separate.</p>
         </section>
       </div>
 
@@ -330,6 +364,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="config/supabase-config.js"></script>
   <script src="assets/js/dashboard.js?v=47"></script>
+  <script src="assets/js/continuity-live-observatory.js?v=1"></script>
   <script src="assets/js/auth.js?v=51"></script>
   <script src="assets/js/manual-projects.js?v=1"></script>
 </body>

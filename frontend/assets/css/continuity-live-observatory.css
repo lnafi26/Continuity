@@ -1,0 +1,43 @@
+/* Authenticated live Observatory slice. Isolated from the public synthetic preview. */
+#observatory { max-width: none; }
+.lo-workspace { background: #0b1423; color: #e4edf8; border: 1px solid #283850; border-radius: 18px; padding: clamp(18px, 3vw, 32px); box-shadow: 0 16px 44px rgba(13,24,40,.13); }
+.lo-kicker { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .16em; color: #9bbbd3; text-transform: uppercase; }
+.lo-top { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; border-bottom: 1px solid #283850; padding-bottom: 22px; }
+.lo-top h2 { margin: 0 0 8px; font-size: clamp(23px,2.6vw,34px); font-weight: 650; letter-spacing: -.025em; }
+.lo-top p.lo-description { margin: 0; color: #a0b4ca; max-width: 670px; line-height: 1.6; }
+.lo-selector { display: grid; gap: 7px; min-width: 200px; max-width: 330px; }
+.lo-selector label { font-size: 12px; color: #a8c1d8; }
+.lo-selector select { border: 1px solid #465b70; border-radius: 8px; background: #18293c; color: #eff7ff; padding: 10px 12px; width: 100%; }
+.lo-context { display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 25px 0 16px; flex-wrap: wrap; }
+.lo-context h3 { color: #e8f0f9; font-size: 21px; margin: 0 0 9px; }
+.lo-context p { color: #9cafc4; margin: 0; max-width: 690px; line-height: 1.5; }
+.lo-context-actions { display: flex; gap: 12px; align-items: center; }
+.lo-pill { color: #a8bdcd; font-size: 12px; white-space: nowrap; }
+.lo-project-button { color: #e9f4ff; background: #243f58; border: 1px solid #46617b; border-radius: 9px; padding: 10px 14px; }
+.lo-project-button:disabled { opacity: .45; cursor: not-allowed; }
+.lo-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(250px, .32fr); gap: 20px; align-items: stretch; }
+.lo-canvas { min-width: 0; display: grid; gap: 17px; }
+.lo-lane { min-width: 0; padding: 20px; border: 1px solid #293b53; border-radius: 13px; background: #101e30; }
+.lo-lane-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 16px; }
+.lo-lane-head h3 { color: #d8eaf4; font-size: 14px; margin: 0; }
+.lo-lane-head small { color: #8da6bf; font-size: 11px; }
+.lo-lane-empty,.lo-empty { color: #91a8bd; font-size: 13px; margin: 0; padding: 17px 0; }
+.lo-rail { display: flex; position: relative; gap: 16px; overflow-x: auto; padding: 10px 3px 14px; min-height: 146px; scrollbar-color: #48617a #101e30; }
+.lo-rail::before { content: ''; position: absolute; top: 27px; left: 24px; right: 24px; height: 2px; background: linear-gradient(90deg,#8bbad1,#466080); }
+.lo-rail-schedule::before { background: linear-gradient(90deg,#bea58d,#806647); }
+.lo-rail-undated::before { background: #677587; border-top: 2px dashed #697887; height: 0; }
+.lo-node { min-width: 182px; max-width: 215px; position: relative; text-align: left; padding: 41px 13px 12px; background: #1a2e43; border: 1px solid #3b5169; border-radius: 10px; color: #e4eef9; display: flex; flex-direction: column; gap: 7px; transition: border-color .16s, background .16s; }
+.lo-node:hover,.lo-node[aria-pressed='true'] { background: #24405a; border-color: #a8d9ef; }
+.lo-node-marker { width: 19px; height: 19px; background: #a7d8e6; border: 4px solid #244056; border-radius: 50%; position: absolute; top: 8px; left: 13px; z-index: 1; box-shadow: 0 0 0 2px #8ebfd1; }
+.lo-task-marker { background: #e4bc93; box-shadow: 0 0 0 2px #d3a66e; }
+.lo-node-date { font-size: 10px; color: #b0cad9; letter-spacing: .075em; }
+.lo-node-title { color: #edf4fb; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.lo-node-type { color: #a0b3c9; font-size: 11px; overflow-wrap: anywhere; }
+.lo-inspector { border: 1px solid #32445d; border-radius: 13px; padding: 22px; background: #142438; align-self: stretch; min-height: 270px; overflow-wrap: anywhere; }
+.lo-inspector-top { color: #89c0d6; font-size: 11px; font-weight: 750; letter-spacing: .14em; margin-bottom: 17px; }
+.lo-inspector h3 { font-size: 18px; margin: 0 0 11px; color: #f3f7fc; line-height: 1.4; }
+.lo-inspector-meta,.lo-inspector-foot { color: #98b3cc; font-size: 12px; line-height: 1.6; }
+.lo-inspector-detail { margin: 19px 0; color: #cad7e5; white-space: pre-wrap; line-height: 1.65; }
+.lo-inspector-empty { color: #97acc2; line-height: 1.6; }
+.lo-bottom-note { color: #8ea8bc; font-size: 11px; margin: 23px 0 0; line-height: 1.6; }
+@media (max-width: 990px) { .lo-grid { grid-template-columns: 1fr; } .lo-inspector { min-height: 145px; } }
