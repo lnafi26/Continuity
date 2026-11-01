@@ -171,6 +171,7 @@
     // Account switch and sign-out call setTimelineData({}), clearing all records.
     const api = hostWindow.ContinuityLiveObservatory;
     api.render = render;
+    api.inspectRecord = showInspector;
     api.clear = () => render({});
     render({});
   }

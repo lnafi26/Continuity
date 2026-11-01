@@ -7,6 +7,7 @@
   <title>ThreadLinePMA | AI Project Manager Assistant</title>
   <link rel="stylesheet" href="assets/css/styles.css?v=48">
   <link rel="stylesheet" href="assets/css/continuity-live-observatory.css?v=1">
+  <link rel="stylesheet" href="assets/css/continuity-live-canvas.css?v=1">
 </head>
 <body class="auth-pending">
   <div class="app">
@@ -130,8 +131,34 @@
               <button type="button" class="lo-project-button" id="observatoryOpenProject">Open project ↗</button>
             </div>
           </div>
+          <div class="lo-display-controls">
+            <div class="lo-display-switch" role="group" aria-label="Observatory display mode">
+              <button type="button" data-lo-mode="timeline" aria-pressed="true">Timeline</button>
+              <button type="button" data-lo-mode="canvas" aria-pressed="false">Canvas</button>
+            </div>
+            <p class="lo-display-help">Real records, separate strands; no inferred causal connections.</p>
+          </div>
           <div class="lo-grid">
-            <div class="lo-canvas" id="observatoryCanvas" aria-label="Project timeline"></div>
+            <div class="lo-primary-area">
+              <div class="lo-canvas" id="observatoryCanvas" aria-label="Project timeline"></div>
+              <section class="lo-canvas-mode" id="loCanvasMode" aria-label="Project Canvas" hidden>
+                <header class="lo-canvas-controls">
+                  <p>Navigate recorded history and scheduled work. Lines indicate chronological order only.</p>
+                  <div class="lo-zoom-tools" aria-label="Canvas zoom controls">
+                    <button type="button" id="loZoomOut" aria-label="Zoom out">−</button>
+                    <output id="loZoomValue">100%</output>
+                    <button type="button" id="loZoomIn" aria-label="Zoom in">+</button>
+                    <button type="button" id="loZoomReset">Reset</button>
+                  </div>
+                </header>
+                <div class="lo-canvas-viewport" id="loCanvasViewport" tabindex="0" aria-label="Scrollable date-aligned project Canvas">
+                  <div class="lo-canvas-holder" id="loCanvasHolder">
+                    <div class="lo-canvas-stage" id="loCanvasStage"></div>
+                  </div>
+                </div>
+                <nav class="lo-canvas-navigator" id="loCanvasNavigator" aria-label="Canvas record navigator"></nav>
+              </section>
+            </div>
             <aside class="lo-inspector" id="observatoryInspector" aria-label="Selected record details"></aside>
           </div>
           <p class="lo-bottom-note">Read-only Observatory view · Data loaded through your signed-in dashboard session · The public synthetic preview remains separate.</p>
@@ -365,6 +392,7 @@
   <script src="config/supabase-config.js"></script>
   <script src="assets/js/dashboard.js?v=47"></script>
   <script src="assets/js/continuity-live-observatory.js?v=1"></script>
+  <script src="assets/js/continuity-live-canvas.js?v=1"></script>
   <script src="assets/js/auth.js?v=51"></script>
   <script src="assets/js/manual-projects.js?v=1"></script>
 </body>
