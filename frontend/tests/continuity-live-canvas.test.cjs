@@ -89,3 +89,26 @@ test('navigator does not create relationships or mutate records', () => {
   assert.deepEqual(data.links,[]);
   assert.deepEqual(source,before);
 });
+
+
+test('large project histories calculate date bounds without argument overflow', () => {
+  const first = Date.UTC(2020, 0, 1);
+  const count = 200001;
+  const history = Array.from({length: count}, (_, index) => ({
+    id: String(index + 1),
+    title: 'Record ' + index,
+    timestamp: first + index * 86400000
+  }));
+
+  const snapshot = buildCanvasModel(null, () => ({
+    history, scheduled: [], unscheduled: []
+  }));
+
+  assert.equal(snapshot.earliest, first);
+  assert.equal(snapshot.latest, first + (count - 1) * 86400000);
+  assert.equal(snapshot.nodes.length, 80);
+  assert.equal(snapshot.truncated.history, count - 80);
+  assert.equal(snapshot.nodes[0].record.id, String(count - 79));
+  assert.ok(Number.isFinite(snapshot.width));
+  assert.deepEqual(snapshot.links, []);
+});

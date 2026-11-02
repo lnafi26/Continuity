@@ -24,10 +24,18 @@
       { kind: 'history', records: groups.history || [] },
       { kind: 'schedule', records: groups.scheduled || [] }
     ];
-    const allDated = eligible.flatMap(g => g.records)
-      .map(r => r.timestamp).filter(t => typeof t === 'number' && Number.isFinite(t));
-    const earliest = allDated.length ? Math.min(...allDated) : null;
-    const latest = allDated.length ? Math.max(...allDated) : null;
+    // Scan date bounds without spreading an unbounded project history
+    // into function arguments. Visible records remain lane-capped.
+    let earliest = null;
+    let latest = null;
+    for (const group of eligible) {
+      for (const record of group.records) {
+        const stamp = record && record.timestamp;
+        if (typeof stamp !== 'number' || !Number.isFinite(stamp)) continue;
+        earliest = earliest === null ? stamp : Math.min(earliest, stamp);
+        latest = latest === null ? stamp : Math.max(latest, stamp);
+      }
+    }
     const duration = earliest === null ? 1 : Math.max(1, latest - earliest);
     const nodes = [];
     const truncated = {};
