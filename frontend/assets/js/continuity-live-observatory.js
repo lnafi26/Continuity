@@ -64,6 +64,7 @@
 
     let projects = {};
     let selectedId = null;
+    let searchTerm = '';
 
     const el = (tag, cls, text) => {
       const node = doc.createElement(tag);
@@ -89,7 +90,7 @@
       headingNode.append(el('h3', '', title), el('small', '', subtitle));
       lane.append(headingNode);
       if (!records.length) {
-        lane.append(el('p', 'lo-lane-empty', laneKind === 'history' ? 'No dated project history recorded yet.' : laneKind === 'schedule' ? 'No tasks with due dates yet.' : 'No undated records.'));
+        lane.append(el('p', 'lo-lane-empty', searchTerm ? 'No matching records in this lane.' : laneKind === 'history' ? 'No dated project history recorded yet.' : laneKind === 'schedule' ? 'No tasks with due dates yet.' : 'No undated records.'));
         return lane;
       }
       const rail = el('div', 'lo-rail lo-rail-' + laneKind);
@@ -154,17 +155,54 @@
       summary.textContent = project.summary || 'Project records loaded from your Supabase account.';
       openButton.disabled = false;
       const { history, scheduled, unscheduled } = normalizedRecords(project);
-      canvas.append(
-        makeLane('Recorded history', 'Chronological, user-owned project events', history, 'history'),
-        makeLane('Scheduled work', 'Task deadlines — not historical events', scheduled, 'schedule')
-      );
-      if (unscheduled.length) canvas.append(makeLane('Without a date', 'Events and tasks with no usable date', unscheduled, 'undated'));
-      inspector.append(el('p', 'lo-inspector-empty', 'Select any timeline node to inspect its details.'));
       const total = history.length + scheduled.length + unscheduled.length;
+      const toolbar = el('div', 'lo-timeline-search');
+      const searchLabel = el('label', '', 'Find a record');
+      searchLabel.setAttribute('for', 'loTimelineSearch');
+      const search = el('input', 'lo-timeline-search-input');
+      search.id = 'loTimelineSearch';
+      search.type = 'search';
+      search.placeholder = 'Search this project’s events and tasks';
+      search.value = searchTerm;
+      const searchStatus = el('p', 'lo-timeline-search-status');
+      searchStatus.setAttribute('aria-live', 'polite');
+      toolbar.append(searchLabel, search, searchStatus);
+      const lanes = el('div', 'lo-timeline-lanes');
+
+      function paintMatches() {
+        const matches = records => searchTerm ? records.filter(record =>
+          [record.title, record.detail, record.type, record.state, record.date]
+            .some(value => String(value || '').toLowerCase().includes(searchTerm))
+        ) : records;
+        const visibleHistory = matches(history);
+        const visibleScheduled = matches(scheduled);
+        const visibleUndated = matches(unscheduled);
+        lanes.replaceChildren(
+          makeLane('Recorded history', 'Chronological, user-owned project events', visibleHistory, 'history'),
+          makeLane('Scheduled work', 'Task deadlines — not historical events', visibleScheduled, 'schedule')
+        );
+        if (unscheduled.length) lanes.append(
+          makeLane('Without a date', 'Events and tasks with no usable date', visibleUndated, 'undated')
+        );
+        const count = visibleHistory.length + visibleScheduled.length + visibleUndated.length;
+        searchStatus.textContent = searchTerm ? `${count} matching record(s) of ${total}` : '';
+      }
+
+      search.addEventListener('input', () => {
+        searchTerm = String(search.value || '').trim().toLowerCase();
+        inspector.replaceChildren(
+          el('p', 'lo-inspector-empty', 'Select any timeline node to inspect its details.')
+        );
+        paintMatches();
+      });
+      canvas.append(toolbar, lanes);
+      paintMatches();
+      inspector.append(el('p', 'lo-inspector-empty', 'Select any timeline node to inspect its details.'));
       doc.getElementById('observatoryRecordCount').textContent = total + (total === 1 ? ' record' : ' records');
     }
 
     function render(nextProjects = {}) {
+      searchTerm = '';
       projects = nextProjects && typeof nextProjects === 'object' ? nextProjects : {};
       const entries = Object.values(projects).filter((p) => p && typeof p.id === 'string')
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -186,6 +224,7 @@
 
     selector.addEventListener('change', () => {
       selectedId = selector.value;
+      searchTerm = '';
       paint();
     });
     openButton.addEventListener('click', () => {

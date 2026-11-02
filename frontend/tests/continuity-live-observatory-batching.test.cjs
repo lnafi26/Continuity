@@ -173,3 +173,107 @@ test('scheduled and undated lanes page independently', () => {
   assert.equal(rows(canvas).length, 175);
   assert.equal(byId.observatoryRecordCount.textContent, '180 records');
 });
+
+
+test('Timeline search finds older records without expanding batches', () => {
+  const {api, byId, root} = setup();
+  api.mount(root.document, root);
+  root.ContinuityLiveObservatory.render({
+    P: {id:'P',name:'Search',events:events(205),actions:[]}
+  });
+  const canvas = byId.observatoryCanvas;
+  const search = walk(canvas,n=>n.id==='loTimelineSearch')[0];
+  assert.ok(search);
+  search.value='decision 2';
+  search.listeners.input();
+  const rows=walk(canvas,n=>n.className==='lo-node');
+  assert.equal(rows.length,17);
+  assert.equal(
+    rows[0].children.find(n=>n.className==='lo-node-title').textContent,
+    'Decision 2'
+  );
+  rows[0].click();
+  assert.equal(
+    byId.observatoryInspector.children.find(n=>n.tagName==='h3').textContent,
+    'Decision 2'
+  );
+  search.value='';
+  search.listeners.input();
+  assert.equal(walk(canvas,n=>n.className==='lo-node').length,80);
+});
+
+test('search returns zero results without changing project records',()=>{
+  const {api,byId,root}=setup();
+  const project={
+    id:'P',name:'QA',events:events(2),
+    actions:[{id:12,title:'Deploy',dueDate:'2026-11-02'}]
+  };
+  api.mount(root.document,root);
+  root.ContinuityLiveObservatory.render({P:project});
+  const canvas=byId.observatoryCanvas;
+  const search=walk(canvas,n=>n.id==='loTimelineSearch')[0];
+  search.value='no-matching-record';
+  search.listeners.input();
+  assert.equal(walk(canvas,n=>n.className==='lo-node').length,0);
+  assert.equal(byId.observatoryRecordCount.textContent,'3 records');
+  assert.match(
+    walk(canvas,n=>n.className==='lo-timeline-search-status')[0].textContent,
+    /0 matching/
+  );
+  assert.equal(project.actions[0].title,'Deploy');
+});
+
+test('account replacement clears search results and Inspector',()=>{
+  const {api,byId,root}=setup();
+  api.mount(root.document,root);
+  root.ContinuityLiveObservatory.render({
+    A:{id:'A',name:'A',events:events(100),actions:[]}
+  });
+  const search=walk(byId.observatoryCanvas,
+    n=>n.id==='loTimelineSearch')[0];
+  search.value='decision 1';
+  search.listeners.input();
+  walk(byId.observatoryCanvas,n=>n.className==='lo-node')[0].click();
+
+  root.ContinuityLiveObservatory.render({
+    B:{id:'B',name:'B',events:[
+      {id:24,title:'Account B record',dateMs:Date.UTC(2025,0,1)}
+    ],actions:[]}
+  });
+  const canvas=byId.observatoryCanvas;
+  assert.equal(
+    walk(canvas,n=>n.id==='loTimelineSearch')[0].value,''
+  );
+  assert.equal(walk(canvas,n=>n.className==='lo-node').length,1);
+  assert.match(
+    byId.observatoryInspector.children[0].textContent,
+    /Select any timeline node/
+  );
+});
+
+test('date searching and large results remain bounded',()=>{
+  const {api,byId,root}=setup();
+  api.mount(root.document,root);
+  root.ContinuityLiveObservatory.render({
+    P:{id:'P',name:'Search',events:events(205),
+      actions:[{id:17,title:'Deploy',dueDate:'2026-11-02'}]}
+  });
+  const canvas=byId.observatoryCanvas;
+  const search=walk(canvas,n=>n.id==='loTimelineSearch')[0];
+  search.value='2026-11-02';
+  search.listeners.input();
+  assert.deepEqual(
+    walk(canvas,n=>n.className==='lo-node').map(n=>
+      n.children.find(c=>c.className==='lo-node-title').textContent
+    ), ['Deploy']
+  );
+
+  search.value='decision';
+  search.listeners.input();
+  assert.equal(walk(canvas,n=>n.className==='lo-node').length,80);
+  const more=walk(canvas,
+    n=>n.className.includes('lo-load-earlier'))[0];
+  assert.match(more.textContent,/125 remaining/);
+  more.click();
+  assert.equal(walk(canvas,n=>n.className==='lo-node').length,160);
+});
