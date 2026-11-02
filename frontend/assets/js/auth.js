@@ -281,6 +281,7 @@
       for (const p of projectRows) {
         projectsById[p.id] = {
           id: p.id,
+          user_id: p.user_id === user.id ? p.user_id : null,
           name: p.name,
           symbol: p.symbol || "P",
           summary: p.summary || "",
@@ -329,6 +330,16 @@
         });
       }
 
+      // Read persisted connections only after assembling real, user-owned
+      // endpoint records. The optional table may not exist in hosted Supabase
+      // yet; a failed read yields zero connections, never synthetic links.
+      const relationshipFeed = window.ContinuityAuthenticatedRelationshipFeed;
+      const projectsWithRelationships = relationshipFeed
+        ? await relationshipFeed.load(db, projectsById, user.id,
+            window.ContinuityRelationshipDataBoundary)
+        : projectsById;
+      if (!sessionIsCurrent(user.id, generation)) return;
+
       // Build the timeline items (all = for full threads, feed = kept items).
       const itemProjectId = {};
       for (const link of linkRes.data || []) {
@@ -354,7 +365,7 @@
         };
       });
       const feed = all.filter((it) => it.include);
-      window.setTimelineData?.({ feed, all, projects: projectsById });
+      window.setTimelineData?.({ feed, all, projects: projectsWithRelationships });
 
       // Day helpers.
       const nowMs = Date.now();
