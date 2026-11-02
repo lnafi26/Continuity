@@ -60,6 +60,45 @@
     return true;
   }
 
+  function forRecord(links, model, recordKey) {
+    if (!Array.isArray(links) || typeof recordKey !== 'string') return [];
+    return links.map(link => ({ link, info: view(link, model) }))
+      .filter(entry => entry.info &&
+        (entry.info.fromKey === recordKey || entry.info.toKey === recordKey));
+  }
+
+  // The selected record's Inspector exposes its explicitly documented links;
+  // no relationship is inferred from proximity or chronological order.
+  function attachForRecord(doc, inspector, links, model, recordKey, onSelect) {
+    if (!doc || !inspector || typeof onSelect !== 'function') return [];
+    const related = forRecord(links, model, recordKey);
+    if (!related.length) return [];
+    const section = doc.createElement('section');
+    section.className = 'lc-inspector-connections';
+    section.setAttribute('aria-label', 'Documented connections for this record');
+    const heading = doc.createElement('h4');
+    heading.textContent = 'Documented connections';
+    section.append(heading);
+    const buttons = [];
+    for (const { link, info } of related) {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = 'lc-inspector-connection';
+      const direction = info.fromKey === recordKey
+        ? 'To: ' + info.toTitle : 'From: ' + info.fromTitle;
+      const label = doc.createElement('strong');
+      label.textContent = info.kind + ' · ' + direction;
+      const statement = doc.createElement('span');
+      statement.textContent = info.statement;
+      button.append(label, statement);
+      button.addEventListener('click', () => onSelect(link, info));
+      section.append(button);
+      buttons.push(button);
+    }
+    inspector.append(section);
+    return buttons;
+  }
+
   function attach(doc, navigator, links, model, onSelect) {
     if (!doc || !navigator || !Array.isArray(links) || !links.length ||
         typeof onSelect !== 'function') return [];
@@ -88,5 +127,5 @@
     return buttons;
   }
 
-  return { view, inspect, attach };
+  return { view, forRecord, attachForRecord, inspect, attach };
 });

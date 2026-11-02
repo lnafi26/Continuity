@@ -17,6 +17,38 @@
   const LEFT = 108;
   const MIN_SPACING = 210;
   const TOP = { history: 122, schedule: 348 };
+  const NODE_WIDTH = 182;
+  const NODE_HEIGHT = 155; // Include room for wrapped record titles.
+  const FIT_GUTTER = 32;
+  const MIN_ZOOM = 0.25;
+  const MAX_ZOOM = 1.8;
+
+  // Pure, deterministic camera calculation; no record or connection is inferred.
+  function fitCanvasView(model, viewportWidth, viewportHeight) {
+    if (!model || !Array.isArray(model.nodes) || !model.nodes.length ||
+        !Number.isFinite(viewportWidth) || viewportWidth <= 0 ||
+        !Number.isFinite(viewportHeight) || viewportHeight <= 0) return null;
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+    for (const node of model.nodes) {
+      if (!node || !Number.isFinite(node.x) || !Number.isFinite(node.y)) continue;
+      left = Math.min(left, node.x);
+      right = Math.max(right, node.x + NODE_WIDTH);
+      top = Math.min(top, node.y - 42);
+      bottom = Math.max(bottom, node.y + NODE_HEIGHT);
+    }
+    if (!Number.isFinite(left)) return null;
+    const availableWidth = Math.max(1, viewportWidth - FIT_GUTTER * 2);
+    const availableHeight = Math.max(1, viewportHeight - FIT_GUTTER * 2);
+    const requested = Math.min(1, availableWidth / Math.max(1, right - left),
+      availableHeight / Math.max(1, bottom - top));
+    const zoom = Math.max(MIN_ZOOM, requested);
+    return {
+      zoom,
+      left: Math.max(0, left * zoom - FIT_GUTTER),
+      top: Math.max(0, top * zoom - FIT_GUTTER),
+      fitsAll: requested >= MIN_ZOOM
+    };
+  }
 
   function buildCanvasModel(project, normalize) {
     const groups = normalize(project);
@@ -118,6 +150,8 @@
     let zoom = 1;
     let chosen = null;
     let relationButtons = [];
+    let validatedLinks = [];
+    let hasEnteredCanvas = false;
     let mapTrack = null;
     let mapWindow = null;
     const keyFor = n => n.key;
@@ -152,6 +186,12 @@
         const active = button.dataset.loMode === mode;
         button.setAttribute('aria-pressed', String(active));
       }
+      // The Canvas was hidden at mount time: measure only after it is visible.
+      // Switching back from Timeline preserves subsequent manual navigation.
+      if (mode === 'canvas' && !hasEnteredCanvas && viewport.clientWidth) {
+        hasEnteredCanvas = true;
+        fitView();
+      }
     }
 
     function scale() {
@@ -164,8 +204,29 @@
       stage.style.transform = `scale(${zoom})`;
       const output = doc.getElementById('loZoomValue');
       if (output) output.textContent = Math.round(zoom * 100) + '%';
-      zoomOut.disabled = zoom <= 0.7;
-      zoomIn.disabled = zoom >= 1.8;
+      zoomOut.disabled = zoom <= MIN_ZOOM;
+      zoomIn.disabled = zoom >= MAX_ZOOM;
+      syncMapViewport();
+    }
+
+    function fitView() {
+      const fit = fitCanvasView(model, viewport.clientWidth, viewport.clientHeight);
+      if (!fit) return;
+      zoom = fit.zoom;
+      scale();
+      viewport.scrollLeft = fit.left;
+      viewport.scrollTop = fit.top;
+      syncMapViewport();
+    }
+
+    function inspectLink(link, info) {
+      chosen = null;
+      syncSelection();
+      const relationInspector = hostWindow.ContinuityRelationshipInspector;
+      if (relationInspector) relationInspector.inspect(
+        doc, doc.getElementById('observatoryInspector'), link, model);
+      viewport.scrollLeft = Math.max(0,
+        info.midpoint * zoom - viewport.clientWidth / 2 + 91 * zoom);
       syncMapViewport();
     }
 
@@ -174,6 +235,13 @@
       chosen = keyFor(node);
       syncSelection();
       if (typeof live.inspectRecord === 'function') live.inspectRecord(node.record);
+      const relationInspector = hostWindow.ContinuityRelationshipInspector;
+      const inspector = doc.getElementById('observatoryInspector');
+      if (relationInspector && inspector &&
+          typeof relationInspector.attachForRecord === 'function') {
+        relationInspector.attachForRecord(doc, inspector, validatedLinks,
+          model, chosen, inspectLink);
+      }
       const target = [...stage.querySelectorAll('[data-lo-node]')]
         .find(el => el.dataset.loNode === chosen);
       if (target && fromNavigator) {
@@ -198,6 +266,7 @@
       const relationshipPlan = relationshipVisuals
         ? relationshipVisuals.plan(project, model, hostWindow.ContinuityRecordRelationships)
         : { links: [], withheld: [] };
+      validatedLinks = relationshipPlan.links;
       const sub = create('p', 'lc-navigator-caption',
         'Navigator · Real records only · Chronology is not a causal link');
       navigator.append(sub);
@@ -287,14 +356,7 @@
       const relationInspector = hostWindow.ContinuityRelationshipInspector;
       if (relationInspector && relationshipPlan.links.length) {
         relationButtons = relationInspector.attach(doc, navigator,
-          relationshipPlan.links, model, (link, info) => {
-            chosen = null;
-            syncSelection();
-            relationInspector.inspect(doc, doc.getElementById('observatoryInspector'), link, model);
-            viewport.scrollLeft = Math.max(0,
-              info.midpoint * zoom - viewport.clientWidth / 2 + 91 * zoom);
-            syncMapViewport();
-          });
+          relationshipPlan.links, model, inspectLink);
       }
       if (model.undatedCount) {
         navigator.append(create('p', 'lc-navigator-note',
@@ -304,6 +366,7 @@
       if (hidden) navigator.append(create('p', 'lc-navigator-note',
         `${hidden} earlier dated records omitted from Canvas for performance. Timeline retains them.`));
       scale();
+      if (mode === 'canvas') fitView(); // Reframe on project/data changes.
       syncSelection();
     }
 
@@ -322,13 +385,15 @@
       button.addEventListener('click', () => setMode(button.dataset.loMode));
     }
     zoomOut.addEventListener('click', () => {
-      zoom = Math.max(0.7, Math.round((zoom - 0.2) * 10) / 10);
+      zoom = Math.max(MIN_ZOOM, Math.round((zoom - 0.2) * 100) / 100);
       scale();
     });
     zoomIn.addEventListener('click', () => {
-      zoom = Math.min(1.8, Math.round((zoom + 0.2) * 10) / 10);
+      zoom = Math.min(MAX_ZOOM, Math.round((zoom + 0.2) * 100) / 100);
       scale();
     });
+    const zoomFit = doc.getElementById('loZoomFit');
+    if (zoomFit) zoomFit.addEventListener('click', fitView);
     zoomReset.addEventListener('click', () => {
       zoom = 1;
       viewport.scrollLeft = 0;
@@ -358,5 +423,5 @@
     draw();
   }
 
-  return { buildCanvasModel, navigatorMarkers, adjacentNode, mount };
+  return { buildCanvasModel, navigatorMarkers, adjacentNode, fitCanvasView, mount };
 });

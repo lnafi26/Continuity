@@ -5,3 +5,13 @@
   outline: 2px solid var(--accent, #6479a2);
   outline-offset: 2px;
 }
+.lc-inspector-connections { border-top: 1px solid #40556a; margin-top: 18px; padding-top: 14px; }
+.lc-inspector-connections h4 { font-size: 12px; color: #c8e3f4; margin: 0 0 10px; }
+.lc-inspector-connection { display: flex; flex-direction: column; gap: 6px;
+  text-align: left; width: 100%; margin-bottom: 8px; padding: 10px;
+  border: 1px solid #49647d; border-radius: 8px; background: #1b3349; color: #e2effa; }
+.lc-inspector-connection strong { font-size: 12px; overflow-wrap: anywhere; }
+.lc-inspector-connection span { font-size: 11px; line-height: 1.5; color: #bacfe1;
+  overflow-wrap: anywhere; }
+.lc-inspector-connection:hover { background: #29475f; }
+.lc-inspector-connection:focus-visible { outline: 2px solid #b2dce9; outline-offset: 2px; }
