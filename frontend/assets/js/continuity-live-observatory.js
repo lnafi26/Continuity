@@ -13,6 +13,7 @@
   }
 })(typeof window === 'undefined' ? null : window, function () {
   'use strict';
+  const TIMELINE_BATCH = 80;
 
   const validDate = (date) => typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
     !Number.isNaN(Date.parse(date + 'T00:00:00Z')) &&
@@ -94,7 +95,7 @@
       const rail = el('div', 'lo-rail lo-rail-' + laneKind);
       rail.setAttribute('role', 'group');
       rail.setAttribute('aria-label', title);
-      for (const record of records) {
+      function recordButton(record) {
         const button = el('button', 'lo-node');
         button.type = 'button';
         button.append(el('span', 'lo-node-marker ' + (record.kind === 'task' ? 'lo-task-marker' : 'lo-event-marker')));
@@ -106,7 +107,31 @@
           button.setAttribute('aria-pressed', 'true');
           showInspector(record);
         });
-        rail.append(button);
+        return button;
+      }
+      // Retain all authorized records; create DOM rows incrementally.
+      // Never infer dates or relationships while navigating older entries.
+      let firstVisible = Math.max(0, records.length - TIMELINE_BATCH);
+      const earlier = el('button', 'lc-navigator-item lo-load-earlier');
+      earlier.type = 'button';
+      function updateEarlierLabel() {
+        const count = Math.min(TIMELINE_BATCH, firstVisible);
+        const label = laneKind === 'undated' ? 'more undated' : `earlier ${laneKind}`;
+        earlier.textContent = `Show ${count} ${label} record(s) · ${firstVisible} remaining`;
+        earlier.hidden = firstVisible === 0;
+      }
+      earlier.addEventListener('click', () => {
+        if (firstVisible === 0) return;
+        const next = Math.max(0, firstVisible - TIMELINE_BATCH);
+        const batch = records.slice(next, firstVisible).map(recordButton);
+        rail.prepend(...batch);
+        firstVisible = next;
+        updateEarlierLabel();
+      });
+      for (const record of records.slice(firstVisible)) rail.append(recordButton(record));
+      if (firstVisible) {
+        updateEarlierLabel();
+        lane.append(earlier);
       }
       lane.append(rail);
       return lane;
