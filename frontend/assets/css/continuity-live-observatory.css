@@ -41,3 +41,156 @@
 .lo-inspector-empty { color: #97acc2; line-height: 1.6; }
 .lo-bottom-note { color: #8ea8bc; font-size: 11px; margin: 23px 0 0; line-height: 1.6; }
 @media (max-width: 990px) { .lo-grid { grid-template-columns: 1fr; } .lo-inspector { min-height: 145px; } }
+
+
+/* Continuity Timeline search visual refinement */
+
+/* Match the search controls to the Night Observatory palette. */
+#liveObservatory .lo-timeline-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  max-width: min(100%, 460px);
+  margin: 20px 0 24px;
+}
+
+#liveObservatory .lo-timeline-search > label {
+  display: block;
+  color: #acc5db;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+#liveObservatory .lo-timeline-search-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid #45617d;
+  border-radius: 10px;
+  background: #172a40;
+  color: #eef5fb;
+  color-scheme: dark;
+  font: inherit;
+  font-size: .93rem;
+  line-height: 1.4;
+}
+
+#liveObservatory .lo-timeline-search-input::placeholder {
+  color: #a7b8ca;
+  opacity: 1;
+}
+
+#liveObservatory .lo-timeline-search-input:focus-visible {
+  outline: 2px solid #9dd6f0;
+  outline-offset: 2px;
+  border-color: #9dd6f0;
+}
+
+#liveObservatory .lo-timeline-search-status {
+  margin: 0;
+  min-height: 1.2em;
+  color: #a8bfd5;
+  font-size: .82rem;
+  line-height: 1.4;
+}
+
+/* Prevent Timeline content from intruding into the Inspector. */
+#liveObservatory .lo-grid,
+#liveObservatory .lo-grid > .lo-primary-area,
+#liveObservatory .lo-canvas,
+#liveObservatory .lo-lane,
+#liveObservatory .lo-inspector {
+  min-width: 0;
+}
+
+#liveObservatory .lo-grid > .lo-primary-area,
+#liveObservatory .lo-canvas,
+#liveObservatory .lo-lane {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#liveObservatory .lo-rail {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+/* Style incremental navigation as a proper Observatory control. */
+#liveObservatory .lo-load-earlier {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 9px 13px;
+  border: 1px solid #45617d;
+  border-radius: 9px;
+  background: #1b344e;
+  color: #e3eff9;
+  font: inherit;
+  font-size: .82rem;
+  line-height: 1.4;
+  white-space: normal;
+  text-align: left;
+  cursor: pointer;
+}
+
+#liveObservatory .lo-load-earlier:hover {
+  background: #284762;
+  border-color: #8bbad6;
+}
+
+#liveObservatory .lo-load-earlier:focus-visible {
+  outline: 2px solid #9dd6f0;
+  outline-offset: 3px;
+}
+
+#liveObservatory .lo-load-earlier[hidden] {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  #liveObservatory .lo-timeline-search {
+    max-width: 100%;
+  }
+}
+
+/* Timeline grid containment correction */
+
+/* The search-created wrapper must not size its parent grid
+   according to the full horizontal width of its record cards. */
+#liveObservatory .lo-canvas {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#liveObservatory .lo-timeline-lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 17px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#liveObservatory .lo-timeline-lanes > .lo-lane {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Cards remain horizontally scrollable inside their own lane. */
+#liveObservatory .lo-rail {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
