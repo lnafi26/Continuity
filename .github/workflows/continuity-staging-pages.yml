@@ -46,6 +46,8 @@ jobs:
           done
       - name: Run Night Observatory regression tests
         run: node --test frontend/tests/night-observatory-*.test.cjs
+      - name: Run complete frontend regression suite
+        run: node --test frontend/tests/*.test.cjs
       - name: Run B1/B2 database security tests
         run: python3 -m unittest discover -s backend/tests -p 'test_b*_*.py' -v
       - name: Run B3 read-only memory tests

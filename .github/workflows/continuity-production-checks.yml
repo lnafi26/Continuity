@@ -39,6 +39,8 @@ jobs:
           done
       - name: Run historical timeline regression tests
         run: node --test frontend/tests/night-observatory-*.test.cjs
+      - name: Run complete frontend regression suite
+        run: node --test frontend/tests/*.test.cjs
       - name: Run production release safety tests
         run: python3 -m unittest discover -s scripts/tests -p 'test_production_site.py' -v
       - name: Build and inspect production artifact
