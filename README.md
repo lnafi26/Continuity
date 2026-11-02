@@ -116,7 +116,8 @@ See `backend/intelligence/SPACE_STAGING.md`, `docs/F1A_EVIDENCE_REVIEW.md`, and 
 4. Reconcile multiple sources, sync incrementally, and expose permission-scoped context snapshots to humans and agents.
 5. Extend authorized connectors (email, calendar, and others), with durable sync and failure recovery.
 6. Build the interactive **Timeline Canvas**: move and inspect distinct continuities and their contextual relationships without changing historical facts.
-7. Prepare Cloudflare deployment, operational monitoring, security review, and user-access controls. `continuity.app` is a preferred domain, **not** a confirmed registration or active deployment.
+7. **Establish separate staging and production environments before any Canvas production rollout:** GitHub Pages for staging with its own Supabase Auth/database and the existing private Hugging Face staging Space; the Cloudflare Pages site remains production, using an independently controlled backend and explicitly approved release promotions. See [Environment and Release Roadmap](docs/ENVIRONMENT_RELEASE_ROADMAP.md) for the E1–E4 checklist and authorization gates.
+8. Prepare Cloudflare deployment, operational monitoring, security review, and user-access controls. `continuity.app` is a preferred domain, **not** a confirmed registration or active deployment.
 
 This roadmap describes **intent**, not implementation. Historical stage documentation in `docs/` and `demo_data/` may include outdated ThreadLinePMA workflows, models, defaults, and schema references; treat them as legacy reference material during the ongoing migration.
 
