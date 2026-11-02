@@ -87,3 +87,36 @@ test('render creates safe SVG markup, without inserting relation statements as H
   assert.equal(visuals.render(doc,stage,model,[]),null);
   assert.equal(items.length,1);
 });
+
+test('parallel and reciprocal documented links use stable distinct curves', () => {
+  const relation = r();
+  const others = [
+    {...r(), id: 'rel2', kind: 'handoff'},
+    {...r(), id: 'rel3', kind: 'convergence',
+      from: {type: 'action', id: 22},
+      to: {type: 'event', id: 11}}
+  ];
+  const all = [relation, ...others];
+  const a = visuals.plan(project(all), model, contract).links;
+  const b = visuals.plan(project([...all].reverse()), model, contract).links;
+  assert.equal(a.length, 3);
+  assert.equal(new Set(a.map(link => link.path)).size, 3);
+  const byId = links => links.map(link => [link.id, link.path])
+    .sort((x, y) => x[0].localeCompare(y[0]));
+  assert.deepEqual(byId(a), byId(b));
+  assert.equal(
+    visuals.plan(project([relation]), model, contract).links[0].path,
+    visuals.geometry(model,
+      visuals.plan(project([relation]), model, contract).links[0]).path
+  );
+});
+
+test('parallel curves do not alter an unrelated connection', () => {
+  const other = {...r(), id: 'other', to: {type: 'event', id: 33}};
+  const alone = visuals.plan(project([other]), model, contract).links[0].path;
+  const combined = visuals.plan(
+    project([r(), {...r(), id: 'rel2', kind: 'handoff'}, other]),
+    model, contract
+  ).links;
+  assert.equal(combined.find(link => link.id === 'other').path, alone);
+});

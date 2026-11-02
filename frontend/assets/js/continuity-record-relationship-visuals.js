@@ -12,7 +12,7 @@
   const NS = 'http://www.w3.org/2000/svg';
   const EMPTY = () => ({ links: [], withheld: [] });
 
-  function geometry(model, relation) {
+  function geometry(model, relation, offset = 0) {
     if (!model || !Array.isArray(model.nodes) || !relation) return null;
     const source = model.nodes.find(n => n && n.key === relation.fromKey);
     const target = model.nodes.find(n => n && n.key === relation.toKey);
@@ -24,11 +24,11 @@
     let d;
     if (source.kind === target.kind) {
       const lift = source.kind === 'history' ? -92 : 92;
-      d = `M ${x1} ${y1} C ${x1} ${y1 + lift}, ${x2} ${y2 + lift}, ${x2} ${y2}`;
+      d = `M ${x1} ${y1} C ${x1} ${y1 + lift + offset}, ${x2} ${y2 + lift + offset}, ${x2} ${y2}`;
     } else {
       const bend = Math.max(48, Math.abs(y2 - y1) * 0.45);
       const direction = y2 > y1 ? 1 : -1;
-      d = `M ${x1} ${y1} C ${x1} ${y1 + bend * direction}, ${x2} ${y2 - bend * direction}, ${x2} ${y2}`;
+      d = `M ${x1} ${y1} C ${x1} ${y1 + bend * direction + offset}, ${x2} ${y2 - bend * direction + offset}, ${x2} ${y2}`;
     }
     return { ...relation, path: d };
   }
@@ -47,7 +47,25 @@
         acceptedEvidence: Array.isArray(bundle.acceptedEvidence) ? bundle.acceptedEvidence : []
       };
       const result = contract.classify(model, bundle.relationships, context);
-      const links = result.drawable.map(link => geometry(model, link)).filter(Boolean);
+      // Separate independently documented links sharing the same endpoints.
+      // Pure presentation: never modify endpoints or infer causation.
+      const groups = new Map();
+      for (const link of result.drawable) {
+        const pair = [link.fromKey, link.toKey].sort().join('|');
+        if (!groups.has(pair)) groups.set(pair, []);
+        groups.get(pair).push(link);
+      }
+      const offsets = new Map();
+      for (const group of groups.values()) {
+        group.sort((a, b) => a.id.localeCompare(b.id));
+        const step = Math.min(16, 112 / Math.max(1, group.length - 1));
+        group.forEach((link, index) => {
+          offsets.set(link.id, (index - (group.length - 1) / 2) * step);
+        });
+      }
+      const links = result.drawable.map(link =>
+        geometry(model, link, offsets.get(link.id) || 0)
+      ).filter(Boolean);
       return { links, withheld: result.withheld };
     } catch (_) {
       return EMPTY(); // Malformed input must never break Observatory.
