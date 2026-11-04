@@ -960,6 +960,8 @@ dialog header {
   grid-column: 1/-1;
 }
 
+/* Hide complete form sections, not just hidden descendants of the grid. */
+.form-grid[hidden],
 .form-grid [hidden] {
   display: none !important;
 }

@@ -20,6 +20,8 @@
   const NODE_WIDTH = 182;
   const NODE_HEIGHT = 155; // Include room for wrapped record titles.
   const FIT_GUTTER = 32;
+  // The lane headings start left of the first node and are real Canvas content.
+  const LANE_LABEL_LEFT = 34;
   const MIN_ZOOM = 0.25;
   const MAX_ZOOM = 1.8;
 
@@ -37,6 +39,8 @@
       bottom = Math.max(bottom, node.y + NODE_HEIGHT);
     }
     if (!Number.isFinite(left)) return null;
+    // Include the headings so Fit never scrolls their left edge off-screen.
+    left = Math.min(left, LANE_LABEL_LEFT);
     const availableWidth = Math.max(1, viewportWidth - FIT_GUTTER * 2);
     const availableHeight = Math.max(1, viewportHeight - FIT_GUTTER * 2);
     const requested = Math.min(1, availableWidth / Math.max(1, right - left),
