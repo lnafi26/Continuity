@@ -11,6 +11,7 @@ from uuid import UUID
 from urllib.parse import urlsplit
 
 import requests
+from backend.memory.local_staging_boundary import approved_local_memory_config
 
 
 class AuthenticationError(Exception):
@@ -27,6 +28,7 @@ def verify_access_token(
     supabase_url: str,
     publishable_key: str,
     timeout: float = 6.0,
+    allow_local_memory: bool = False,
 ) -> str:
     """Return a verified Supabase user UUID, or fail closed.
 
@@ -47,8 +49,13 @@ def verify_access_token(
     ):
         raise AuthenticationError("A valid bearer token is required.")
 
+    if allow_local_memory and not approved_local_memory_config(
+        supabase_url, publishable_key, enabled=True
+    ):
+        raise AuthenticationUnavailable("Local authentication configuration rejected.")
+
     parsed = urlsplit(supabase_url.strip() if isinstance(supabase_url, str) else "")
-    if (
+    if not allow_local_memory and (
         parsed.scheme != "https"
         or not parsed.hostname
         or parsed.username

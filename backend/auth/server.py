@@ -28,6 +28,7 @@ from urllib.parse import urlsplit
 # Allow running directly (python3 backend/auth/server.py): make sibling modules
 # importable regardless of the caller's working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import requests
@@ -209,6 +210,7 @@ def memory_project_context(project_id):
             supabase_url=config.supabase_url,
             publishable_key=config.supabase_publishable_key,
             project_id=project_id,
+            **({"allow_local_memory": True} if getattr(config, "allow_local_memory", False) else {}),
         )
     except MemoryAuthenticationError:
         return jsonify(

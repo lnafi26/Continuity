@@ -7,6 +7,10 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 import requests
+from backend.memory.local_staging_boundary import (
+    LOCAL_SUPABASE_URL,
+    approved_local_memory_config,
+)
 
 from backend.auth.supabase_auth import verify_access_token
 from backend.memory.context import build_project_context
@@ -37,7 +41,14 @@ SELECT = {
 }
 
 
-def _base_url(value):
+def _base_url(value, *, allow_local_memory=False, publishable_key=None):
+    if allow_local_memory:
+        if approved_local_memory_config(
+            value, publishable_key, enabled=True
+        ):
+            return LOCAL_SUPABASE_URL
+        raise ValueError("Local memory configuration rejected.")
+
     if not isinstance(value, str):
         raise ValueError("Invalid Supabase URL.")
 
@@ -125,25 +136,38 @@ def fetch_project_context(
     supabase_url,
     publishable_key,
     project_id,
+    allow_local_memory=False,
 ):
     """Read a bounded context under a verified user's RLS identity.
 
     All retrievals use the user's bearer token, never service_role.
     The resulting snapshot is ephemeral and potentially incomplete.
     """
-    base = _base_url(supabase_url)
+    base = _base_url(
+        supabase_url,
+        allow_local_memory=allow_local_memory,
+        publishable_key=publishable_key,
+    )
     pid = _uuid(project_id)
 
-    if (
-        not isinstance(publishable_key, str)
-        or not publishable_key.startswith("sb_publishable_")
-    ):
-        raise ValueError("Publishable key required.")
+    if allow_local_memory:
+        valid_public_key = approved_local_memory_config(
+            base, publishable_key, enabled=True
+        )
+    else:
+        valid_public_key = (
+            isinstance(publishable_key, str)
+            and publishable_key.startswith("sb_publishable_")
+        )
+
+    if not valid_public_key:
+        raise ValueError("Public API key required.")
 
     user_id = verify_access_token(
         authorization_header,
         supabase_url=base,
         publishable_key=publishable_key,
+        **({"allow_local_memory": True} if allow_local_memory else {}),
     )
     user_id = str(UUID(user_id))
 

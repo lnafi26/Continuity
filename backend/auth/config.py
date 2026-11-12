@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
+from backend.memory.local_staging_boundary import approved_local_memory_config
 
 # google-auth-oauthlib raises if Google returns a slightly different scope set
 # than requested (Google always echoes back "openid"). Relaxing this avoids a
@@ -61,6 +62,7 @@ class Config:
     host: str = "localhost"
     port: int = 8765
     missing: list[str] = field(default_factory=list)
+    allow_local_memory: bool = False
 
     @property
     def is_complete(self) -> bool:
@@ -70,6 +72,12 @@ class Config:
     @property
     def auth_missing(self) -> list[str]:
         """Core auth requires only the project URL and browser-safe API key."""
+        if self.allow_local_memory:
+            return [] if approved_local_memory_config(
+                self.supabase_url,
+                self.supabase_publishable_key,
+                enabled=True,
+            ) else ["LOCAL_MEMORY_CONFIGURATION"]
         missing = []
         try:
             parsed = urlsplit(self.supabase_url)
@@ -198,6 +206,7 @@ def load_config() -> Config:
         supabase_url=values["SUPABASE_URL"],
         supabase_publishable_key=values["SUPABASE_PUBLISHABLE_KEY"],
         pipeline_enabled=read("CONTINUITY_ENABLE_LEGACY_PIPELINE").lower() == "true",
+        allow_local_memory=read("CONTINUITY_ENABLE_LOCAL_MEMORY_BRIDGE").lower() == "true",
         host=host,
         port=port,
         missing=missing,
