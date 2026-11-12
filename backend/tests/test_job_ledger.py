@@ -159,7 +159,7 @@ class JobLedgerTests(unittest.TestCase):
 
     def test_schema_owner_constraint_backend_only_and_no_raw_exception(self):
         sql = (Path(__file__).resolve().parents[2] /
-               "supabase/migrations/20261017000000_processing_jobs.sql").read_text()
+               "backend/database/deferred/20261017000000_processing_jobs.sql").read_text()
         normalized = sql.lower()
         self.assertIn("foreign key (source_item_id, user_id)", normalized)
         self.assertIn("enable row level security", normalized)

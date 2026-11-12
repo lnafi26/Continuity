@@ -16,7 +16,22 @@ class B2IntegrationGateTests(unittest.TestCase):
             p.name
             for p in (ROOT / "supabase/migrations").glob("*.sql")
         ))
-        self.assertEqual(actual, gate.APPROVED)
+        hosted_approved = (
+            "20261016000000_initial_schema.sql",
+            "20261030212002_continuity_b1_privilege_hardening.sql",
+        )
+        local_additions = (
+            "20261101233115_project_record_relationships.sql",
+            "20261102163151_enforce_child_project_ownership.sql",
+        )
+        self.assertEqual(gate.APPROVED, hosted_approved)
+        self.assertEqual(
+            actual, tuple(sorted(hosted_approved + local_additions))
+        )
+        self.assertTrue(
+            gate.assess(actual, gate.APPROVED),
+            "Additional local migrations must block hosted integration.",
+        )
 
     def test_deferred_migration_blocks_integration(self):
         main = (

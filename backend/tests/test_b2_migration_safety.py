@@ -11,18 +11,18 @@ DEFERRED = (
 
 
 class B2MigrationSafetyTests(unittest.TestCase):
-    def test_only_reviewed_migrations_are_discoverable(self):
-        filenames = sorted(
+    def test_active_migration_inventory_is_explicit(self):
+        filenames = tuple(sorted(
             file.name for file in MIGRATIONS.glob("*.sql")
-        )
-        self.assertEqual(len(filenames), 2)
-        self.assertEqual(
-            filenames[0],
+        ))
+        self.assertEqual(filenames, (
             "20261016000000_initial_schema.sql",
-        )
-        self.assertRegex(
-            filenames[1],
-            r"^\d{14}_continuity_b1_privilege_hardening\.sql$",
+            "20261030212002_continuity_b1_privilege_hardening.sql",
+            "20261101233115_project_record_relationships.sql",
+            "20261102163151_enforce_child_project_ownership.sql",
+        ))
+        self.assertFalse(
+            (MIGRATIONS / "20261017000000_processing_jobs.sql").exists()
         )
 
     def test_b1_migration_matches_applied_security_sql(self):
