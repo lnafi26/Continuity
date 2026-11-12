@@ -242,3 +242,243 @@
 
   return { normalizedRecords, validDate, mount };
 });
+
+/* Continuity: opt-in, local-only Project Memory panel.
+ * Uses the authenticated backend; never stores tokens or writes records.
+ */
+;(function (root) {
+  'use strict';
+
+  const BACKEND = 'http://127.0.0.1:8765';
+  const PREVIEW = 'http://127.0.0.1:8000';
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  function enabled(host) {
+    return Boolean(
+      host &&
+      host.CONTINUITY_MEMORY_API_BASE === BACKEND &&
+      host.location?.origin === PREVIEW
+    );
+  }
+
+  function text(value) {
+    return typeof value === 'string'
+      ? value.trim().slice(0, 300)
+      : '';
+  }
+
+  function rows(context, keys) {
+    for (const key of keys) {
+      if (Array.isArray(context[key])) return context[key];
+    }
+    return [];
+  }
+
+  function describe(record) {
+    if (!record || typeof record !== 'object') return '';
+    return text(
+      record.title ||
+      record.name ||
+      record.statement ||
+      record.summary
+    );
+  }
+
+  function viewModel(context) {
+    if (!context || typeof context !== 'object' ||
+        Array.isArray(context)) {
+      throw new TypeError('Invalid project memory.');
+    }
+
+    const project = context.project &&
+      typeof context.project === 'object'
+      ? context.project : {};
+
+    return {
+      name: text(project.name),
+      summary: text(project.summary),
+      history: rows(context, [
+        'recent_events', 'historical_events',
+        'recorded_history', 'events', 'history'
+      ]).map(describe).filter(Boolean).slice(0, 6),
+      actions: rows(context, [
+        'open_actions', 'outstanding_actions',
+        'upcoming_actions', 'actions', 'tasks'
+      ]).map(describe).filter(Boolean).slice(0, 6)
+    };
+  }
+
+  function mount(host, doc) {
+    if (!enabled(host)) return;
+
+    const picker = doc.getElementById('observatoryProjectSelect');
+    const summary = doc.getElementById('observatoryProjectSummary');
+
+    if (!picker || !summary) return;
+
+    const section = doc.createElement('section');
+    section.className = 'lo-memory-panel';
+    section.hidden = true;
+    section.setAttribute('aria-label', 'Project Memory');
+
+    const header = doc.createElement('div');
+    header.className = 'lo-memory-header';
+
+    const title = doc.createElement('h4');
+    title.textContent = 'Project Memory';
+
+    const reload = doc.createElement('button');
+    reload.type = 'button';
+    reload.textContent = 'Refresh';
+    reload.className = 'lo-memory-refresh';
+
+    header.append(title, reload);
+
+    const status = doc.createElement('p');
+    status.className = 'lo-memory-status';
+    status.setAttribute('role', 'status');
+
+    const body = doc.createElement('div');
+    body.className = 'lo-memory-content';
+
+    section.append(header, status, body);
+    summary.insertAdjacentElement('afterend', section);
+
+    let generation = 0;
+
+    function clear() {
+      body.replaceChildren();
+    }
+
+    function addGroup(label, entries) {
+      if (!entries.length) return;
+
+      const group = doc.createElement('div');
+      group.className = 'lo-memory-group';
+
+      const heading = doc.createElement('h5');
+      heading.textContent = label;
+
+      const list = doc.createElement('ul');
+      for (const entry of entries) {
+        const item = doc.createElement('li');
+        item.textContent = entry;
+        list.appendChild(item);
+      }
+
+      group.append(heading, list);
+      body.appendChild(group);
+    }
+
+    async function refresh() {
+      const current = ++generation;
+      clear();
+
+      const id = picker.value;
+      if (!UUID.test(id)) {
+        section.hidden = true;
+        return;
+      }
+
+      section.hidden = false;
+      status.textContent = 'Loading project memory…';
+
+      try {
+        const db = host.supabaseDb;
+        if (!db?.auth?.getSession) {
+          throw new Error('Session unavailable');
+        }
+
+        const { data, error } = await db.auth.getSession();
+        if (current !== generation) return;
+
+        const token = data?.session?.access_token;
+        if (error || typeof token !== 'string' || !token) {
+          throw new Error('Authentication required');
+        }
+
+        const response = await host.fetch(
+          BACKEND + '/memory/projects/' +
+            encodeURIComponent(id) + '/context',
+          {
+            method: 'GET',
+            headers: {
+              Authorization: 'Bearer ' + token,
+              Accept: 'application/json'
+            },
+            cache: 'no-store'
+          }
+        );
+
+        if (current !== generation) return;
+        if (!response.ok) throw new Error('Memory unavailable');
+
+        const result = await response.json();
+        if (current !== generation) return;
+        if (result?.ok !== true) {
+          throw new Error('Invalid memory response');
+        }
+
+        const memory = viewModel(result.context);
+        status.textContent = 'Read-only project context';
+
+        if (memory.summary) {
+          const description = doc.createElement('p');
+          description.className = 'lo-memory-description';
+          description.textContent = memory.summary;
+          body.appendChild(description);
+        }
+
+        addGroup('Recorded history', memory.history);
+        addGroup('Outstanding actions', memory.actions);
+
+        if (!body.childElementCount) {
+          status.textContent =
+            'Project context loaded. No displayable records in this snapshot.';
+        }
+      } catch (_) {
+        if (current !== generation) return;
+        clear();
+        status.textContent =
+          'Project memory unavailable. Check the local backend and try again.';
+      }
+    }
+
+    reload.addEventListener('click', refresh);
+    picker.addEventListener('change', refresh);
+
+    if (typeof host.MutationObserver === 'function') {
+      const observer = new host.MutationObserver(refresh);
+      observer.observe(picker, { childList: true });
+    }
+
+    host.supabaseDb?.auth?.onAuthStateChange?.((_event, session) => {
+      ++generation;
+      clear();
+
+      if (session) {
+        refresh();
+      } else {
+        section.hidden = true;
+      }
+    });
+
+    refresh();
+  }
+
+  if (typeof module === 'object' && module.exports) {
+    module.exports.localMemoryPanel = { enabled, viewModel };
+  }
+
+  if (typeof document !== 'undefined' &&
+      root?.addEventListener && enabled(root)) {
+    if (document.readyState === 'loading') {
+      document.addEventListener(
+        'DOMContentLoaded', () => mount(root, document),
+        { once: true }
+      );
+    } else {
+      mount(root, document);
+    }
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

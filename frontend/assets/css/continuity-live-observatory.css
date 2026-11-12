@@ -194,3 +194,77 @@
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* Read-only Project Memory: local staging integration */
+.lo-memory-panel {
+  margin-top: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--border, rgba(128, 128, 128, .3));
+  border-radius: 12px;
+  background: var(--surface, rgba(128, 128, 128, .045));
+}
+
+.lo-memory-panel[hidden] {
+  display: none !important;
+}
+
+.lo-memory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lo-memory-header h4 {
+  margin: 0;
+  font-size: .95rem;
+  font-weight: 650;
+}
+
+.lo-memory-refresh {
+  padding: .35rem .65rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: .8rem;
+}
+
+.lo-memory-refresh:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.lo-memory-status,
+.lo-memory-description {
+  margin: .65rem 0 0;
+  font-size: .84rem;
+  line-height: 1.5;
+}
+
+.lo-memory-status {
+  opacity: .7;
+}
+
+.lo-memory-content {
+  display: grid;
+  gap: .85rem;
+}
+
+.lo-memory-group h5 {
+  margin: .75rem 0 .3rem;
+  font-size: .82rem;
+}
+
+.lo-memory-group ul {
+  margin: 0;
+  padding-left: 1.3rem;
+  line-height: 1.55;
+  font-size: .84rem;
+}
+
+.lo-memory-group li + li {
+  margin-top: .25rem;
+}
