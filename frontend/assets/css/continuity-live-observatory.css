@@ -268,3 +268,41 @@
 .lo-memory-group li + li {
   margin-top: .25rem;
 }
+
+
+/* Project Memory — Observatory dark contrast correction */
+#liveObservatory .lo-memory-panel {
+  background: #14243a;
+  border: 1px solid #34506e;
+  color: #eaf2ff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .12);
+}
+
+#liveObservatory .lo-memory-panel h4,
+#liveObservatory .lo-memory-panel h5,
+#liveObservatory .lo-memory-panel li {
+  color: #edf5ff;
+}
+
+#liveObservatory .lo-memory-panel .lo-memory-status {
+  color: #b3c8e0;
+  opacity: 1;
+}
+
+#liveObservatory .lo-memory-panel .lo-memory-description {
+  color: #ccdcef;
+}
+
+#liveObservatory .lo-memory-panel .lo-memory-refresh {
+  background: #203b59;
+  border-color: #496787;
+  color: #edf5ff;
+}
+
+#liveObservatory .lo-memory-panel .lo-memory-refresh:hover {
+  background: #2c4b6d;
+}
+
+#liveObservatory .lo-memory-panel .lo-memory-refresh:focus-visible {
+  outline-color: #b9d9ff;
+}

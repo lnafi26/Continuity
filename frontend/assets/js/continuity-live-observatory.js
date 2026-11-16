@@ -453,11 +453,14 @@
     }
 
     host.supabaseDb?.auth?.onAuthStateChange?.((_event, session) => {
-      ++generation;
+      const version = ++generation;
       clear();
 
       if (session) {
-        refresh();
+        // Avoid calling Supabase APIs inside its auth-state callback.
+        host.setTimeout(() => {
+          if (version === generation) refresh();
+        }, 0);
       } else {
         section.hidden = true;
       }
