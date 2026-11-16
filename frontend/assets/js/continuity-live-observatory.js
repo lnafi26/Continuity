@@ -284,27 +284,66 @@
     );
   }
 
+  function memoryRecord(record, kind) {
+    if (!record || typeof record !== 'object' ||
+        Array.isArray(record)) return null;
+
+    const title = describe(record);
+    if (!title) return null;
+
+    return {
+      kind,
+      title,
+      id: text(record.id),
+      type: kind === 'event' ? text(record.type) : 'Task',
+      occurredAt: kind === 'event' ? text(record.occurred_at) : '',
+      dueDate: kind === 'action' ? text(record.due_date) : '',
+      status: kind === 'action' ? text(record.status) : '',
+      sourceItemId: kind === 'event'
+        ? text(record.source_item_id) : '',
+      sourceLinkStatus: kind === 'event'
+        ? text(record.source_link_status) : '',
+      evidenceVerification: kind === 'event'
+        ? text(record.evidence_verification) : '',
+      userEdited: kind === 'event' &&
+        typeof record.user_edited === 'boolean'
+        ? record.user_edited : null
+    };
+  }
+
   function viewModel(context) {
     if (!context || typeof context !== 'object' ||
-        Array.isArray(context)) {
-      throw new TypeError('Invalid project memory.');
+        Array.isArray(context) ||
+        context.schema_version !== 1 ||
+        context.kind !== 'derived_read_only' ||
+        context.persisted !== false) {
+      throw new TypeError('Unsupported project memory snapshot.');
     }
 
     const project = context.project &&
       typeof context.project === 'object'
       ? context.project : {};
 
+    const historyRecords = rows(context, [
+      'recent_events'
+    ]).slice(0, 6)
+      .map(record => memoryRecord(record, 'event'))
+      .filter(Boolean);
+
+    const actionRecords = rows(context, [
+      'open_actions'
+    ]).slice(0, 6)
+      .map(record => memoryRecord(record, 'action'))
+      .filter(Boolean);
+
     return {
       name: text(project.name),
       summary: text(project.summary),
-      history: rows(context, [
-        'recent_events', 'historical_events',
-        'recorded_history', 'events', 'history'
-      ]).map(describe).filter(Boolean).slice(0, 6),
-      actions: rows(context, [
-        'open_actions', 'outstanding_actions',
-        'upcoming_actions', 'actions', 'tasks'
-      ]).map(describe).filter(Boolean).slice(0, 6)
+      asOf: text(context.as_of),
+      history: historyRecords.map(record => record.title),
+      actions: actionRecords.map(record => record.title),
+      historyRecords,
+      actionRecords
     };
   }
 
@@ -345,9 +384,92 @@
     summary.insertAdjacentElement('afterend', section);
 
     let generation = 0;
+    const details = doc.createElement('section');
+    details.id = 'loMemoryRecordDetail';
+    details.className = 'lo-memory-evidence';
+    details.setAttribute('role', 'region');
+    details.setAttribute('aria-label', 'Selected memory record details');
+    details.hidden = true;
 
     function clear() {
       body.replaceChildren();
+      details.replaceChildren();
+      details.hidden = true;
+    }
+
+    function showEvidence(entry, button) {
+      body.querySelectorAll('.lo-memory-record').forEach(item => {
+        item.setAttribute(
+          'aria-pressed',
+          item === button ? 'true' : 'false'
+        );
+      });
+
+      details.replaceChildren();
+
+      const heading = doc.createElement('h5');
+      heading.textContent = entry.title;
+
+      const metadata = doc.createElement('dl');
+
+      function field(label, value) {
+        const row = doc.createElement('div');
+        const name = doc.createElement('dt');
+        const content = doc.createElement('dd');
+
+        name.textContent = label;
+        content.textContent = value;
+        row.append(name, content);
+        metadata.appendChild(row);
+      }
+
+      field('Record ID', entry.id || 'Not supplied');
+      field('Record type', entry.type || 'Not supplied');
+
+      if (entry.kind === 'event') {
+        field('Recorded date',
+          entry.occurredAt || 'Not supplied');
+
+        field('Source item reference',
+          entry.sourceItemId || 'No source ID recorded');
+
+        let linkStatus = entry.sourceLinkStatus || 'Not supplied';
+
+        if (linkStatus === 'no_source') {
+          linkStatus = 'No source recorded for this event';
+        } else if (linkStatus === 'link_not_in_snapshot') {
+          linkStatus = 'Link not included in this bounded snapshot';
+        }
+
+        field('Source-link status', linkStatus);
+
+        field('Evidence verification',
+          entry.evidenceVerification === 'not_verified'
+            ? 'Not verified'
+            : 'No verification result available');
+
+        if (entry.userEdited !== null) {
+          field('User edit flag',
+            entry.userEdited
+              ? 'User edit recorded'
+              : 'No user edit flagged');
+        }
+      } else {
+        field('Task status',
+          entry.status || 'Not supplied');
+        field('Due date',
+          entry.dueDate || 'No due date recorded');
+      }
+
+      const notice = doc.createElement('p');
+      notice.className = 'lo-memory-evidence-note';
+      notice.textContent = entry.kind === 'event'
+        ? 'A source reference or link status does not verify a claim. No source document is available in this snapshot.'
+        : 'This task snapshot does not include source-document evidence.';
+
+      details.append(heading, metadata, notice);
+      details.hidden = false;
+      body.appendChild(details);
     }
 
     function addGroup(label, entries) {
@@ -360,9 +482,22 @@
       heading.textContent = label;
 
       const list = doc.createElement('ul');
+
       for (const entry of entries) {
         const item = doc.createElement('li');
-        item.textContent = entry;
+        const button = doc.createElement('button');
+
+        button.type = 'button';
+        button.className = 'lo-memory-record';
+        button.textContent = entry.title;
+        button.setAttribute('aria-pressed', 'false');
+        button.setAttribute('aria-controls', details.id);
+
+        button.addEventListener('click', () => {
+          showEvidence(entry, button);
+        });
+
+        item.appendChild(button);
         list.appendChild(item);
       }
 
@@ -420,22 +555,22 @@
         }
 
         const memory = viewModel(result.context);
-        status.textContent = 'Read-only project context';
+        status.textContent = 'Derived read-only snapshot · not durable';
 
-        if (memory.summary) {
-          const description = doc.createElement('p');
-          description.className = 'lo-memory-description';
-          description.textContent = memory.summary;
-          body.appendChild(description);
-        }
+        addGroup('Recorded history', memory.historyRecords);
+        addGroup('Outstanding actions', memory.actionRecords);
 
-        addGroup('Recorded history', memory.history);
-        addGroup('Outstanding actions', memory.actions);
-
-        if (!body.childElementCount) {
+        if (!memory.historyRecords.length &&
+            !memory.actionRecords.length) {
           status.textContent =
-            'Project context loaded. No displayable records in this snapshot.';
+            'No displayable records in this bounded snapshot.';
         }
+
+        const notice = doc.createElement('p');
+        notice.className = 'lo-memory-snapshot-note';
+        notice.textContent =
+          'Showing up to six records per group. Missing source links do not prove that no association exists.';
+        body.appendChild(notice);
       } catch (_) {
         if (current !== generation) return;
         clear();

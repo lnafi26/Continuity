@@ -306,3 +306,80 @@
 #liveObservatory .lo-memory-panel .lo-memory-refresh:focus-visible {
   outline-color: #b9d9ff;
 }
+
+/* Project Memory — evidence inspector */
+#liveObservatory .lo-memory-record {
+  display: inline-block;
+  width: 100%;
+  padding: .35rem .5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #eaf2ff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#liveObservatory .lo-memory-record:hover,
+#liveObservatory .lo-memory-record[aria-pressed="true"] {
+  border-color: #496787;
+  background: #203b59;
+}
+
+#liveObservatory .lo-memory-record:focus-visible {
+  outline: 2px solid #b9d9ff;
+  outline-offset: 2px;
+}
+
+#liveObservatory .lo-memory-evidence {
+  margin-top: .5rem;
+  padding: 1rem;
+  border: 1px solid #496787;
+  border-left: 3px solid #9ac8ff;
+  border-radius: 8px;
+  background: #0d1a2b;
+  color: #eaf2ff;
+}
+
+#liveObservatory .lo-memory-evidence[hidden] {
+  display: none !important;
+}
+
+#liveObservatory .lo-memory-evidence h5 {
+  margin: 0 0 .8rem;
+  color: #edf5ff;
+  font-size: .95rem;
+}
+
+#liveObservatory .lo-memory-evidence dl {
+  margin: 0;
+  display: grid;
+  gap: .65rem;
+}
+
+#liveObservatory .lo-memory-evidence dl > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 35%) minmax(0, 1fr);
+  gap: .65rem;
+}
+
+#liveObservatory .lo-memory-evidence dt {
+  color: #a9c2df;
+  font-size: .8rem;
+}
+
+#liveObservatory .lo-memory-evidence dd {
+  margin: 0;
+  color: #edf5ff;
+  overflow-wrap: anywhere;
+  font-size: .84rem;
+}
+
+#liveObservatory .lo-memory-evidence-note,
+#liveObservatory .lo-memory-snapshot-note {
+  margin: .8rem 0 0;
+  color: #b3c8e0;
+  font-size: .76rem;
+  line-height: 1.5;
+}
