@@ -383,3 +383,45 @@
   font-size: .76rem;
   line-height: 1.5;
 }
+
+/* B4.6b local-only review interaction; existing Observatory layout untouched. */
+#liveObservatory > .crrp-workbench {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-block: 1rem;
+  border: 1px solid var(--border, #53606f);
+  border-radius: 0.7rem;
+  color: inherit;
+}
+.crrp-summary { cursor: pointer; padding: .8rem 1rem; font-weight: 600; }
+.crrp-content { padding: 0 1rem 1rem; }
+.crrp-notice { font-size: .85rem; font-weight: 600; }
+.crrp-comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: .75rem;
+}
+.crrp-card {
+  padding: .8rem;
+  border: 1px solid var(--border, #53606f);
+  border-radius: .5rem;
+}
+.crrp-card h4 { margin: 0 0 .4rem; font-size: .9rem; }
+.crrp-card p { margin: 0; overflow-wrap: anywhere; }
+.crrp-evidence { font-size: .88rem; opacity: .85; }
+.crrp-controls { display: flex; gap: .5rem; flex-wrap: wrap; }
+.crrp-action, .crrp-reset {
+  cursor: pointer;
+  padding: .55rem .8rem;
+  border-radius: .4rem;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.crrp-action:focus-visible, .crrp-reset:focus-visible,
+.crrp-summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.crrp-status { margin-bottom: 0; font-size: .9rem; }

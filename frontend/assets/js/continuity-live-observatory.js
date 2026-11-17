@@ -620,3 +620,97 @@
     }
   }
 })(typeof window !== 'undefined' ? window : globalThis);
+
+/* B4.6b: isolated local-only human-review interaction preview.
+ * This is NOT a memory revision, user confirmation, or saved project record.
+ * It never reads project data, makes requests, or stores a decision.
+ */
+(function (host) {
+  'use strict';
+  if (!host || !host.document ||
+      host.location?.origin !== 'http://127.0.0.1:8000' ||
+      host.CONTINUITY_MEMORY_API_BASE !== 'http://127.0.0.1:8765') return;
+
+  const doc = host.document;
+
+  function node(tag, className, label) {
+    const item = doc.createElement(tag);
+    if (className) item.className = className;
+    if (label !== undefined) item.textContent = label;
+    return item;
+  }
+
+  function mount() {
+    const shell = doc.getElementById('liveObservatory');
+    if (!shell || doc.getElementById('continuityRevisionReviewPreview')) return false;
+
+    const panel = node('details', 'crrp-workbench');
+    panel.id = 'continuityRevisionReviewPreview';
+
+    const summary = node('summary', 'crrp-summary',
+      'Try the memory review controls · Local prototype');
+    const content = node('div', 'crrp-content');
+    const notice = node('p', 'crrp-notice',
+      'FICTIONAL EXAMPLE · No project data loaded. No review decision is saved or sent to a server.');
+    const intro = node('p', '',
+      'Compare a previously recorded value with a proposed change, then preview the decision you would make.');
+    const comparison = node('div', 'crrp-comparison');
+
+    function comparisonCard(label, value) {
+      const card = node('section', 'crrp-card');
+      card.append(node('h4', '', label), node('p', '', value));
+      return card;
+    }
+
+    comparison.append(
+      comparisonCard('Previous · fictional',
+        'Project Cedar kickoff is scheduled for June 12.'),
+      comparisonCard('Proposed · fictional',
+        'Change the scheduled kickoff to June 20.')
+    );
+
+    const evidence = node('p', 'crrp-evidence',
+      'Evidence example: fictional meeting note · source not verified');
+    const controls = node('div', 'crrp-controls');
+    const status = node('p', 'crrp-status',
+      'Awaiting your preview choice. No project memory has been changed.');
+
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+
+    const actions = [
+      ['confirm', 'Preview confirm'],
+      ['dispute', 'Preview dispute'],
+      ['reject', 'Preview reject']
+    ];
+
+    for (const [action, label] of actions) {
+      const button = node('button', 'crrp-action', label);
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        status.textContent = 'Preview choice: ' + action +
+          '. No confirmation was recorded, and no revision was saved or sent.';
+      });
+      controls.append(button);
+    }
+
+    const reset = node('button', 'crrp-reset', 'Reset preview');
+    reset.type = 'button';
+    reset.addEventListener('click', () => {
+      status.textContent =
+        'Awaiting your preview choice. No project memory has been changed.';
+    });
+    controls.append(reset);
+
+    content.append(notice, intro, comparison, evidence, controls, status);
+    panel.append(summary, content);
+    shell.append(panel);
+    return true;
+  }
+
+  if (doc.readyState === 'loading') {
+    doc.addEventListener('DOMContentLoaded', mount, { once: true });
+  } else {
+    mount();
+  }
+})(typeof window === 'undefined' ? null : window);
