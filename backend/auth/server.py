@@ -241,6 +241,25 @@ def memory_project_context(project_id):
     return jsonify(ok=True, context=context)
 
 
+# B4.6a: authenticated revision-intent validation only.
+# No writes, ownership assertions, or confirmation recording.
+from backend.memory.revision_intent_api import (
+    register_revision_intent_validation,
+)
+
+register_revision_intent_validation(
+    app,
+    auth_ready=lambda: config.auth_ready,
+    verified_user=lambda: verify_access_token(
+        request.headers.get("Authorization"),
+        supabase_url=config.supabase_url,
+        publishable_key=config.supabase_publishable_key,
+        allow_local_memory=bool(
+            getattr(config, "allow_local_memory", False)
+        ),
+    ),
+)
+
 @app.get("/")
 def index():
     return _page(
