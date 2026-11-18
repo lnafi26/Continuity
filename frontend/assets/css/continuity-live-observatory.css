@@ -425,3 +425,47 @@
   outline-offset: 3px;
 }
 .crrp-status { margin-bottom: 0; font-size: .9rem; }
+
+/* B4.6c: contextual review layout, local preview only. */
+.crrp-content {
+  display: grid;
+  gap: 1rem;
+  padding-block: .4rem 1.25rem;
+}
+.crrp-content > p { margin: 0; line-height: 1.5; }
+.crrp-card {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  min-width: 0;
+}
+.crrp-card p { line-height: 1.5; }
+.crrp-draft {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  box-sizing: border-box;
+  padding: .75rem;
+  border: 1px solid #718096;
+  border-radius: .4rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+.crrp-draft:disabled { opacity: .65; }
+.crrp-controls { margin-top: .2rem; }
+.crrp-action:first-child:not(:disabled) {
+  border-color: #6e9cce;
+  background: rgba(76, 123, 184, .14);
+}
+.crrp-action:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.crrp-status {
+  padding-top: .6rem;
+  border-top: 1px solid rgba(130, 151, 180, .25);
+  line-height: 1.5;
+}

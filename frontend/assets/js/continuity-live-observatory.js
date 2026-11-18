@@ -495,6 +495,13 @@
 
         button.addEventListener('click', () => {
           showEvidence(entry, button);
+          if (typeof host.CustomEvent === 'function' &&
+              typeof host.dispatchEvent === 'function') {
+            host.dispatchEvent(new host.CustomEvent(
+              'continuity:memory-record-selected',
+              { detail: { title: entry.title } }
+            ));
+          }
         });
 
         item.appendChild(button);
@@ -508,6 +515,12 @@
     async function refresh() {
       const current = ++generation;
       clear();
+      if (typeof host.CustomEvent === 'function' &&
+          typeof host.dispatchEvent === 'function') {
+        host.dispatchEvent(new host.CustomEvent(
+          'continuity:memory-review-reset'
+        ));
+      }
 
       const id = picker.value;
       if (!UUID.test(id)) {
@@ -590,6 +603,12 @@
     host.supabaseDb?.auth?.onAuthStateChange?.((_event, session) => {
       const version = ++generation;
       clear();
+      if (typeof host.CustomEvent === 'function' &&
+          typeof host.dispatchEvent === 'function') {
+        host.dispatchEvent(new host.CustomEvent(
+          'continuity:memory-review-reset'
+        ));
+      }
 
       if (session) {
         // Avoid calling Supabase APIs inside its auth-state callback.
@@ -622,94 +641,185 @@
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* B4.6b: isolated local-only human-review interaction preview.
- * This is NOT a memory revision, user confirmation, or saved project record.
- * It never reads project data, makes requests, or stores a decision.
+ * B4.6c connects to authenticated, read-only memory item selections.
+ * No revision history is inferred; no network or persistence occurs.
  */
 (function (host) {
   'use strict';
   if (!host || !host.document ||
       host.location?.origin !== 'http://127.0.0.1:8000' ||
-      host.CONTINUITY_MEMORY_API_BASE !== 'http://127.0.0.1:8765') return;
+      host.CONTINUITY_MEMORY_API_BASE !== 'http://127.0.0.1:8765' ||
+      typeof host.addEventListener !== 'function') return;
 
   const doc = host.document;
 
-  function node(tag, className, label) {
+  const el = (tag, cls, label) => {
     const item = doc.createElement(tag);
-    if (className) item.className = className;
+    if (cls) item.className = cls;
     if (label !== undefined) item.textContent = label;
     return item;
-  }
+  };
 
   function mount() {
     const shell = doc.getElementById('liveObservatory');
-    if (!shell || doc.getElementById('continuityRevisionReviewPreview')) return false;
+    if (!shell ||
+        doc.getElementById('continuityRevisionReviewPreview')) return false;
 
-    const panel = node('details', 'crrp-workbench');
+    const panel = el('details', 'crrp-workbench');
     panel.id = 'continuityRevisionReviewPreview';
 
-    const summary = node('summary', 'crrp-summary',
-      'Try the memory review controls · Local prototype');
-    const content = node('div', 'crrp-content');
-    const notice = node('p', 'crrp-notice',
-      'FICTIONAL EXAMPLE · No project data loaded. No review decision is saved or sent to a server.');
-    const intro = node('p', '',
-      'Compare a previously recorded value with a proposed change, then preview the decision you would make.');
-    const comparison = node('div', 'crrp-comparison');
+    const heading = el('summary', 'crrp-summary',
+      'Review a selected memory item · Local preview');
+    const content = el('div', 'crrp-content');
 
-    function comparisonCard(label, value) {
-      const card = node('section', 'crrp-card');
-      card.append(node('h4', '', label), node('p', '', value));
-      return card;
-    }
+    const notice = el('p', 'crrp-notice',
+      'LOCAL PREVIEW · Read-only source record. Your draft and review choice are not saved.');
 
-    comparison.append(
-      comparisonCard('Previous · fictional',
-        'Project Cedar kickoff is scheduled for June 12.'),
-      comparisonCard('Proposed · fictional',
-        'Change the scheduled kickoff to June 20.')
+    const guide = el('p', '',
+      'Choose an item in Project memory. Its provenance remains in the record inspector above.');
+
+    const compare = el('div', 'crrp-comparison');
+    const recorded = el('section', 'crrp-card');
+
+    recorded.append(
+      el('h4', '', 'Recorded item · not revision history')
     );
 
-    const evidence = node('p', 'crrp-evidence',
-      'Evidence example: fictional meeting note · source not verified');
-    const controls = node('div', 'crrp-controls');
-    const status = node('p', 'crrp-status',
-      'Awaiting your preview choice. No project memory has been changed.');
+    const currentValue = el('p', '', 'No memory item selected.');
+    recorded.append(currentValue);
+
+    const proposal = el('section', 'crrp-card');
+    proposal.append(el('h4', '', 'Your unsaved draft'));
+
+    const draft = el('textarea', 'crrp-draft');
+    draft.setAttribute('aria-label', 'Draft alternative text');
+    draft.placeholder =
+      'Select a recorded item, then type your proposed correction.';
+    draft.maxLength = 300;
+    draft.disabled = true;
+    proposal.append(draft);
+
+    compare.append(recorded, proposal);
+
+    const evidence = el('p', 'crrp-evidence',
+      'Linked source references are shown in the existing inspector. A source link is not independent verification.');
+
+    const controls = el('div', 'crrp-controls');
+    const status = el('p', 'crrp-status',
+      'Select a record to begin. No changes have been made.');
 
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
 
-    const actions = [
+    let selected = null;
+    const buttons = [];
+
+    function validDraft() {
+      const value = draft.value.trim();
+      return Boolean(
+        selected &&
+        value.length > 0 &&
+        value !== selected &&
+        value.length <= 300
+      );
+    }
+
+    function updateButtons() {
+      for (const button of buttons) {
+        button.disabled = !validDraft();
+      }
+    }
+
+    function reset() {
+      selected = null;
+      currentValue.textContent = 'No memory item selected.';
+      draft.value = '';
+      draft.disabled = true;
+      status.textContent =
+        'Select a record to begin. No changes have been made.';
+      updateButtons();
+    }
+
+    for (const [decision, title] of [
       ['confirm', 'Preview confirm'],
       ['dispute', 'Preview dispute'],
       ['reject', 'Preview reject']
-    ];
-
-    for (const [action, label] of actions) {
-      const button = node('button', 'crrp-action', label);
+    ]) {
+      const button = el('button', 'crrp-action', title);
       button.type = 'button';
+      button.disabled = true;
+
       button.addEventListener('click', () => {
-        status.textContent = 'Preview choice: ' + action +
-          '. No confirmation was recorded, and no revision was saved or sent.';
+        if (!validDraft()) return;
+
+        status.textContent = 'Preview choice: ' + decision +
+          '. No revision was created, confirmed, or sent.';
       });
+
+      buttons.push(button);
       controls.append(button);
     }
 
-    const reset = node('button', 'crrp-reset', 'Reset preview');
-    reset.type = 'button';
-    reset.addEventListener('click', () => {
-      status.textContent =
-        'Awaiting your preview choice. No project memory has been changed.';
-    });
-    controls.append(reset);
+    const resetButton = el('button', 'crrp-reset', 'Clear draft');
+    resetButton.type = 'button';
 
-    content.append(notice, intro, comparison, evidence, controls, status);
-    panel.append(summary, content);
+    resetButton.addEventListener('click', () => {
+      if (!selected) return reset();
+
+      draft.value = '';
+      status.textContent =
+        'Draft cleared. No changes have been made.';
+      updateButtons();
+    });
+
+    controls.append(resetButton);
+
+    draft.addEventListener('input', () => {
+      status.textContent =
+        'Unsaved draft. Preview choices do not change project memory.';
+      updateButtons();
+    });
+
+    host.addEventListener(
+      'continuity:memory-record-selected',
+      event => {
+        const incoming = event?.detail;
+
+        if (!incoming ||
+            typeof incoming.title !== 'string' ||
+            !incoming.title.trim() ||
+            incoming.title.length > 300) {
+          return reset();
+        }
+
+        selected = incoming.title.trim();
+        currentValue.textContent = selected;
+        draft.value = '';
+        draft.disabled = false;
+
+        status.textContent =
+          'Recorded item selected. Type a different value to preview a review choice.';
+
+        updateButtons();
+        panel.open = true;
+      }
+    );
+
+    host.addEventListener('continuity:memory-review-reset', reset);
+
+    content.append(
+      notice, guide, compare, evidence, controls, status
+    );
+
+    panel.append(heading, content);
     shell.append(panel);
     return true;
   }
 
   if (doc.readyState === 'loading') {
-    doc.addEventListener('DOMContentLoaded', mount, { once: true });
+    doc.addEventListener(
+      'DOMContentLoaded', mount, { once: true }
+    );
   } else {
     mount();
   }

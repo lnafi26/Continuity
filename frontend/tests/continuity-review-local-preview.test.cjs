@@ -11,32 +11,33 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-const marker = '/* B4.6b: isolated local-only human-review interaction preview.';
+const marker =
+  '/* B4.6b: isolated local-only human-review interaction preview.';
+
 assert.equal(source.split(marker).length, 2);
 const code = marker + source.split(marker)[1];
 
-function makeDoc() {
+function environment(
+  origin = 'http://127.0.0.1:8000',
+  backend = 'http://127.0.0.1:8765'
+) {
   function element(tag) {
     return {
-      tag,
-      children: [],
-      handlers: {},
-      attributes: {},
-      textContent: '',
-      className: '',
-      id: '',
+      tag, id: '', className: '', textContent: '',
+      children: [], handlers: {}, attributes: {},
+      value: '', disabled: false,
       append(...items) { this.children.push(...items); },
-      setAttribute(key, value) { this.attributes[key] = value; },
-      addEventListener(name, handler) { this.handlers[name] = handler; }
+      setAttribute(k, v) { this.attributes[k] = v; },
+      addEventListener(k, v) { this.handlers[k] = v; }
     };
   }
 
   const shell = element('section');
   shell.id = 'liveObservatory';
 
-  function find(root, id) {
-    if (root.id === id) return root;
-    for (const child of root.children) {
+  function find(node, id) {
+    if (node.id === id) return node;
+    for (const child of node.children) {
       const match = find(child, id);
       if (match) return match;
     }
@@ -50,67 +51,125 @@ function makeDoc() {
     addEventListener() {}
   };
 
-  return { shell, doc };
+  const handlers = {};
+  const host = {
+    location: { origin },
+    CONTINUITY_MEMORY_API_BASE: backend,
+    document: doc,
+    addEventListener(name, fn) { handlers[name] = fn; }
+  };
+
+  vm.runInNewContext(code, { window: host });
+
+  function flatten(node) {
+    return [node, ...node.children.flatMap(flatten)];
+  }
+
+  return {
+    shell, handlers,
+    nodes: () => flatten(shell)
+  };
 }
 
-function flatten(node) {
-  return [node, ...node.children.flatMap(flatten)];
-}
+test('workbench mounts only in exact local preview', () => {
+  assert.equal(environment().shell.children.length, 1);
 
-function run(origin, backend) {
-  const { doc, shell } = makeDoc();
-  vm.runInNewContext(code, {
-    window: {
-      location: { origin },
-      CONTINUITY_MEMORY_API_BASE: backend,
-      document: doc
-    }
-  });
-  return { shell, nodes: flatten(shell) };
-}
-
-test('never mounts outside exact local memory preview', () => {
   for (const [origin, backend] of [
     ['https://continuity.example', 'http://127.0.0.1:8765'],
-    ['http://127.0.0.1:8000', 'https://example.com'],
-    ['http://127.0.0.1:9999', 'http://127.0.0.1:8765'],
-    ['http://localhost:8000', 'http://127.0.0.1:8765']
+    ['http://localhost:8000', 'http://127.0.0.1:8765'],
+    ['http://127.0.0.1:8000', 'https://example.org']
   ]) {
-    assert.equal(run(origin, backend).shell.children.length, 0);
+    assert.equal(
+      environment(origin, backend).shell.children.length,
+      0
+    );
   }
 });
 
-test('shows fictional comparison and working preview controls', () => {
-  const { nodes } = run(
-    'http://127.0.0.1:8000',
-    'http://127.0.0.1:8765'
-  );
-
+test('no fabricated revision appears before selection', () => {
+  const env = environment();
+  const nodes = env.nodes();
   const text = nodes.map(n => n.textContent).join(' ');
-  assert.match(text, /FICTIONAL EXAMPLE/);
-  assert.match(text, /source not verified/);
-
+  const draft = nodes.find(n => n.tag === 'textarea');
   const actions = nodes.filter(n => n.tag === 'button');
-  assert.equal(actions.length, 4);
 
+  assert.match(text, /No memory item selected/);
+  assert.match(text, /not revision history/);
+  assert.doesNotMatch(text, /Project Cedar/);
+  assert.equal(draft.disabled, true);
+  assert.ok(actions.slice(0, 3).every(n => n.disabled));
+});
+
+test('selection enables a meaningful unsaved draft', () => {
+  const env = environment();
+  const nodes = env.nodes();
+  const draft = nodes.find(n => n.tag === 'textarea');
+  const actions = nodes.filter(n => n.tag === 'button');
   const status = nodes.find(n => n.attributes.role === 'status');
-  assert.ok(status);
+
+  env.handlers['continuity:memory-record-selected']({
+    detail: { title: 'Review Canvas visualization' }
+  });
+
+  assert.equal(draft.disabled, false);
+  assert.equal(actions[0].disabled, true);
+
+  draft.value = 'Review Canvas visualization';
+  draft.handlers.input();
+  assert.equal(actions[0].disabled, true);
+
+  draft.value = 'Review revised Canvas visualization';
+  draft.handlers.input();
+  assert.equal(actions[0].disabled, false);
 
   actions[0].handlers.click();
-  assert.match(status.textContent, /No confirmation was recorded/);
-  assert.match(status.textContent, /revision was saved/);
+  assert.match(status.textContent, /No revision was created/);
 
   actions[1].handlers.click();
   assert.match(status.textContent, /dispute/);
 
   actions[2].handlers.click();
   assert.match(status.textContent, /reject/);
-
-  actions[3].handlers.click();
-  assert.match(status.textContent, /Awaiting your preview choice/);
 });
 
-test('prototype contains no network, storage or HTML injection', () => {
+test('switching records and resetting clears drafts', () => {
+  const env = environment();
+  const draft = env.nodes().find(n => n.tag === 'textarea');
+  const actions = env.nodes().filter(n => n.tag === 'button');
+
+  env.handlers['continuity:memory-record-selected']({
+    detail: { title: 'First record' }
+  });
+
+  draft.value = 'Edited first record';
+  draft.handlers.input();
+
+  env.handlers['continuity:memory-record-selected']({
+    detail: { title: 'Second record' }
+  });
+
+  assert.equal(draft.value, '');
+  assert.equal(actions[0].disabled, true);
+
+  env.handlers['continuity:memory-review-reset']();
+
+  assert.equal(draft.disabled, true);
+  assert.equal(draft.value, '');
+  assert.equal(actions[0].disabled, true);
+});
+
+test('selection and reset are wired into authenticated memory panel', () => {
+  const before = source.split(marker)[0];
+
+  assert.match(before, /showEvidence\(entry, button\)/);
+  assert.match(before, /continuity:memory-record-selected/);
+  assert.equal(
+    before.split('continuity:memory-review-reset').length - 1,
+    2
+  );
+});
+
+test('prototype has no network, storage or HTML injection', () => {
   assert.doesNotMatch(
     code,
     /\bfetch\s*\(|\bXMLHttpRequest\b|\blocalStorage\b|\bsessionStorage\b|\binnerHTML\b|sendBeacon/
