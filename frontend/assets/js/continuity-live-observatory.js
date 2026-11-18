@@ -523,8 +523,8 @@
               {
                 detail: {
                   title: entry.title,
-                  recordId: entry.__review?.id || null,
-                  recordKind: entry.__review?.kind || null,
+                  recordId: entry.id,
+                  recordKind: entry.kind,
                   projectId: picker.value
                 }
               }

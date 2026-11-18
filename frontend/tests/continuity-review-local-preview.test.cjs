@@ -283,3 +283,60 @@ test('read-only memory model preserves a decimal record ID', () => {
   assert.equal(model.historyRecords[0].__review.kind, 'event');
   assert.equal(model.actionRecords[0].__review.kind, 'action');
 });
+
+test('normalized record identity reaches review without hidden metadata', () => {
+  const mod = require('../assets/js/continuity-live-observatory.js');
+
+  const model = mod.localMemoryPanel.viewModel({
+    schema_version: 1,
+    kind: 'derived_read_only',
+    persisted: false,
+    project: { id: PROJECT, name: 'Local preview' },
+    recent_events: [],
+    open_actions: [{
+      id: '17',
+      title: 'Review Canvas visualization'
+    }]
+  });
+
+  const original = model.actionRecords[0];
+
+  assert.equal(original.id, '17');
+  assert.equal(original.kind, 'action');
+
+  // Ordinary record fields survive copying; hidden review metadata does not.
+  const copied = JSON.parse(JSON.stringify(original));
+
+  assert.equal(copied.id, '17');
+  assert.equal(copied.kind, 'action');
+  assert.equal(copied.__review, undefined);
+
+  const selectionSource = source.split(
+    '/* B4.6d contextual review: local preview, no persistence.'
+  )[0];
+
+  assert.match(
+    selectionSource,
+    /recordId:\s*entry\.id,\s*recordKind:\s*entry\.kind,/
+  );
+
+  const env = environment();
+
+  env.handlers['continuity:memory-record-selected']({
+    detail: {
+      title: copied.title,
+      recordId: copied.id,
+      recordKind: copied.kind,
+      projectId: PROJECT
+    }
+  });
+
+  const draft = env.nodes().find(n => n.tag === 'textarea');
+  const identity = env.nodes().find(
+    n => n.className === 'crrp-identity'
+  );
+
+  assert.equal(draft.disabled, false);
+  assert.match(identity.textContent, /Record ID: 17/);
+  assert.match(identity.textContent, /Record type: action/);
+});
