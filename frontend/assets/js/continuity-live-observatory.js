@@ -316,8 +316,12 @@
   function withReviewIdentity(view, raw, kind) {
     if (!view || typeof view !== 'object') return view;
 
+    // PostgreSQL project_events/project_actions use BIGINT primary keys.
+    // The authenticated context serializes them as decimal strings.
+    // Do not invent or coerce UUIDs for these records.
     const id = typeof raw?.id === 'string' &&
-      UUID.test(raw.id) ? raw.id.toLowerCase() : null;
+      /^[1-9][0-9]{0,18}$/.test(raw.id) &&
+      BigInt(raw.id) <= 9223372036854775807n ? raw.id : null;
 
     Object.defineProperty(view, '__review', {
       value: Object.freeze({ id, kind }),
@@ -677,6 +681,9 @@
       typeof host.addEventListener !== 'function') return;
 
   const doc = host.document;
+
+  // Actual PostgreSQL BIGINT record IDs, not project UUIDs.
+  const BIGINT_RECORD_ID = /^[1-9][0-9]{0,18}$/;
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   function el(tag, cls, label) {
@@ -833,7 +840,8 @@
             !data.title.trim() ||
             data.title.length > 300 ||
             typeof data.recordId !== 'string' ||
-            !UUID.test(data.recordId) ||
+            !BIGINT_RECORD_ID.test(data.recordId) ||
+            BigInt(data.recordId) > 9223372036854775807n ||
             typeof data.projectId !== 'string' ||
             !UUID.test(data.projectId) ||
             !['event', 'action'].includes(data.recordKind)) {
@@ -845,7 +853,7 @@
 
         selected = {
           title: data.title.trim(),
-          id: data.recordId.toLowerCase(),
+          id: data.recordId,
           kind: data.recordKind,
           projectId: data.projectId.toLowerCase()
         };

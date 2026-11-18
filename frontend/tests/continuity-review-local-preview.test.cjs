@@ -16,8 +16,8 @@ assert.equal(source.split(marker).length, 2);
 const code = marker + source.split(marker)[1];
 
 const PROJECT = '33333333-3333-4333-8333-333333333333';
-const FIRST = '44444444-4444-4444-8444-444444444444';
-const SECOND = '55555555-5555-4555-8555-555555555555';
+const FIRST = '1';
+const SECOND = '2';
 
 function environment(
   origin = 'http://127.0.0.1:8000',
@@ -225,4 +225,61 @@ test('no network, storage, or HTML injection in review workbench', () => {
     code,
     /\bfetch\s*\(|\bXMLHttpRequest\b|\blocalStorage\b|\bsessionStorage\b|\binnerHTML\b|sendBeacon/
   );
+});
+
+
+test('BIGINT record identity remains distinct from project UUID', () => {
+  const env = environment();
+  const draft = env.nodes().find(n => n.tag === 'textarea');
+  const identity = env.nodes().find(
+    n => n.className === 'crrp-identity'
+  );
+
+  selection(env, '9223372036854775807', 'Maximum BIGINT ID');
+
+  assert.equal(draft.disabled, false);
+  assert.match(
+    identity.textContent,
+    /Record ID: 9223372036854775807/
+  );
+  assert.match(identity.textContent, /Project ID:/);
+});
+
+test('malformed, overflowing and UUID record IDs fail closed', () => {
+  const invalid = [
+    '0',
+    '-1',
+    '01',
+    '1.0',
+    '1e3',
+    '9223372036854775808',
+    '44444444-4444-4444-8444-444444444444'
+  ];
+
+  for (const id of invalid) {
+    const env = environment();
+    const draft = env.nodes().find(n => n.tag === 'textarea');
+
+    selection(env, id);
+
+    assert.equal(draft.disabled, true, id);
+  }
+});
+
+test('read-only memory model preserves a decimal record ID', () => {
+  const mod = require('../assets/js/continuity-live-observatory.js');
+
+  const model = mod.localMemoryPanel.viewModel({
+    schema_version: 1,
+    kind: 'derived_read_only',
+    persisted: false,
+    project: { name: 'Read-only test' },
+    recent_events: [{ id: '123', title: 'Recorded event' }],
+    open_actions: [{ id: '456', title: 'Recorded action' }]
+  });
+
+  assert.equal(model.historyRecords[0].__review.id, '123');
+  assert.equal(model.actionRecords[0].__review.id, '456');
+  assert.equal(model.historyRecords[0].__review.kind, 'event');
+  assert.equal(model.actionRecords[0].__review.kind, 'action');
 });
