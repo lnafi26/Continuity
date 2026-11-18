@@ -311,6 +311,23 @@
     };
   }
 
+  // B4.6d review identity: metadata is not serialized into
+  // the derived memory snapshot or treated as a revision.
+  function withReviewIdentity(view, raw, kind) {
+    if (!view || typeof view !== 'object') return view;
+
+    const id = typeof raw?.id === 'string' &&
+      UUID.test(raw.id) ? raw.id.toLowerCase() : null;
+
+    Object.defineProperty(view, '__review', {
+      value: Object.freeze({ id, kind }),
+      enumerable: false,
+      configurable: false
+    });
+
+    return view;
+  }
+
   function viewModel(context) {
     if (!context || typeof context !== 'object' ||
         Array.isArray(context) ||
@@ -327,13 +344,13 @@
     const historyRecords = rows(context, [
       'recent_events'
     ]).slice(0, 6)
-      .map(record => memoryRecord(record, 'event'))
+      .map(record => withReviewIdentity(memoryRecord(record, 'event'), record, 'event'))
       .filter(Boolean);
 
     const actionRecords = rows(context, [
       'open_actions'
     ]).slice(0, 6)
-      .map(record => memoryRecord(record, 'action'))
+      .map(record => withReviewIdentity(memoryRecord(record, 'action'), record, 'action'))
       .filter(Boolean);
 
     return {
@@ -499,7 +516,14 @@
               typeof host.dispatchEvent === 'function') {
             host.dispatchEvent(new host.CustomEvent(
               'continuity:memory-record-selected',
-              { detail: { title: entry.title } }
+              {
+                detail: {
+                  title: entry.title,
+                  recordId: entry.__review?.id || null,
+                  recordKind: entry.__review?.kind || null,
+                  projectId: picker.value
+                }
+              }
             ));
           }
         });
@@ -640,25 +664,27 @@
   }
 })(typeof window !== 'undefined' ? window : globalThis);
 
-/* B4.6b: isolated local-only human-review interaction preview.
- * B4.6c connects to authenticated, read-only memory item selections.
- * No revision history is inferred; no network or persistence occurs.
+/* B4.6d contextual review: local preview, no persistence.
+ * Existing recorded items are not durable memory revisions.
+ * Review actions require a real proposal and therefore stay unavailable.
  */
 (function (host) {
   'use strict';
+
   if (!host || !host.document ||
       host.location?.origin !== 'http://127.0.0.1:8000' ||
       host.CONTINUITY_MEMORY_API_BASE !== 'http://127.0.0.1:8765' ||
       typeof host.addEventListener !== 'function') return;
 
   const doc = host.document;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const el = (tag, cls, label) => {
+  function el(tag, cls, label) {
     const item = doc.createElement(tag);
     if (cls) item.className = cls;
     if (label !== undefined) item.textContent = label;
     return item;
-  };
+  }
 
   function mount() {
     const shell = doc.getElementById('liveObservatory');
@@ -668,139 +694,175 @@
     const panel = el('details', 'crrp-workbench');
     panel.id = 'continuityRevisionReviewPreview';
 
-    const heading = el('summary', 'crrp-summary',
-      'Review a selected memory item · Local preview');
+    const summary = el('summary', 'crrp-summary',
+      'Review project memory · Local preview');
     const content = el('div', 'crrp-content');
 
     const notice = el('p', 'crrp-notice',
-      'LOCAL PREVIEW · Read-only source record. Your draft and review choice are not saved.');
+      'LOCAL PREVIEW · Recorded items are read-only. Drafts are not saved.');
 
     const guide = el('p', '',
-      'Choose an item in Project memory. Its provenance remains in the record inspector above.');
+      'Select an item in Project memory to prepare an unsaved correction.');
 
-    const compare = el('div', 'crrp-comparison');
-    const recorded = el('section', 'crrp-card');
+    const comparison = el('div', 'crrp-comparison');
 
-    recorded.append(
-      el('h4', '', 'Recorded item · not revision history')
-    );
+    const original = el('section', 'crrp-card');
+    original.append(el('h4', '', 'Recorded item'));
 
-    const currentValue = el('p', '', 'No memory item selected.');
-    recorded.append(currentValue);
+    const value = el('p', '', 'No memory item selected.');
+    const metadata = el('p', 'crrp-identity',
+      'No record identity available.');
 
-    const proposal = el('section', 'crrp-card');
-    proposal.append(el('h4', '', 'Your unsaved draft'));
+    original.append(value, metadata);
+
+    const proposed = el('section', 'crrp-card');
+    proposed.append(el('h4', '', 'Propose a correction'));
 
     const draft = el('textarea', 'crrp-draft');
-    draft.setAttribute('aria-label', 'Draft alternative text');
+    draft.setAttribute('aria-label', 'Unsaved proposed correction');
     draft.placeholder =
-      'Select a recorded item, then type your proposed correction.';
+      'Select a record, then enter the text you would propose.';
     draft.maxLength = 300;
     draft.disabled = true;
-    proposal.append(draft);
 
-    compare.append(recorded, proposal);
+    proposed.append(draft);
+    comparison.append(original, proposed);
 
-    const evidence = el('p', 'crrp-evidence',
-      'Linked source references are shown in the existing inspector. A source link is not independent verification.');
+    const provenance = el('p', 'crrp-evidence',
+      'Inspect the selected item in Project memory for available provenance. Source links do not independently verify claims.');
 
-    const controls = el('div', 'crrp-controls');
+    const proposalControls = el('div', 'crrp-controls');
+    const previewButton = el(
+      'button', 'crrp-action', 'Preview correction proposal'
+    );
+
+    previewButton.type = 'button';
+    previewButton.disabled = true;
+
+    const clearButton = el(
+      'button', 'crrp-reset', 'Clear draft'
+    );
+    clearButton.type = 'button';
+
+    proposalControls.append(previewButton, clearButton);
+
+    const reviewSection = el('section', 'crrp-review-section');
+    reviewSection.append(
+      el('h4', '', 'Review an existing proposal'),
+      el('p', 'crrp-review-note',
+        'Unavailable in this preview. No persisted proposal, revision ID, or confirmed history has been loaded.')
+    );
+
+    const reviewControls = el('div', 'crrp-controls');
+    const reviewButtons = [];
+
+    for (const label of [
+      'Confirm proposal',
+      'Dispute proposal',
+      'Reject proposal'
+    ]) {
+      const button = el('button', 'crrp-action', label);
+      button.type = 'button';
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
+      reviewButtons.push(button);
+      reviewControls.append(button);
+    }
+
+    reviewSection.append(reviewControls);
+
     const status = el('p', 'crrp-status',
       'Select a record to begin. No changes have been made.');
-
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
 
     let selected = null;
-    const buttons = [];
 
-    function validDraft() {
-      const value = draft.value.trim();
+    function meaningfulDraft() {
+      const text = draft.value.trim();
       return Boolean(
         selected &&
-        value.length > 0 &&
-        value !== selected &&
-        value.length <= 300
+        text.length > 0 &&
+        text.length <= 300 &&
+        text !== selected.title
       );
     }
 
-    function updateButtons() {
-      for (const button of buttons) {
-        button.disabled = !validDraft();
-      }
+    function update() {
+      previewButton.disabled = !meaningfulDraft();
     }
 
     function reset() {
       selected = null;
-      currentValue.textContent = 'No memory item selected.';
+      value.textContent = 'No memory item selected.';
+      metadata.textContent = 'No record identity available.';
       draft.value = '';
       draft.disabled = true;
       status.textContent =
         'Select a record to begin. No changes have been made.';
-      updateButtons();
+      update();
     }
 
-    for (const [decision, title] of [
-      ['confirm', 'Preview confirm'],
-      ['dispute', 'Preview dispute'],
-      ['reject', 'Preview reject']
-    ]) {
-      const button = el('button', 'crrp-action', title);
-      button.type = 'button';
-      button.disabled = true;
-
-      button.addEventListener('click', () => {
-        if (!validDraft()) return;
-
-        status.textContent = 'Preview choice: ' + decision +
-          '. No revision was created, confirmed, or sent.';
-      });
-
-      buttons.push(button);
-      controls.append(button);
-    }
-
-    const resetButton = el('button', 'crrp-reset', 'Clear draft');
-    resetButton.type = 'button';
-
-    resetButton.addEventListener('click', () => {
-      if (!selected) return reset();
-
-      draft.value = '';
+    previewButton.addEventListener('click', () => {
+      if (!meaningfulDraft()) return;
       status.textContent =
-        'Draft cleared. No changes have been made.';
-      updateButtons();
+        'Correction proposal previewed locally. No proposal was submitted, no revision was created, and nothing was confirmed.';
     });
 
-    controls.append(resetButton);
+    clearButton.addEventListener('click', () => {
+      draft.value = '';
+      status.textContent = selected
+        ? 'Draft cleared. Recorded item unchanged.'
+        : 'Select a record to begin.';
+      update();
+    });
 
     draft.addEventListener('input', () => {
       status.textContent =
-        'Unsaved draft. Preview choices do not change project memory.';
-      updateButtons();
+        'Unsaved correction draft. Previewing does not submit it.';
+      update();
     });
 
     host.addEventListener(
       'continuity:memory-record-selected',
       event => {
-        const incoming = event?.detail;
+        const data = event?.detail;
 
-        if (!incoming ||
-            typeof incoming.title !== 'string' ||
-            !incoming.title.trim() ||
-            incoming.title.length > 300) {
-          return reset();
+        if (!data ||
+            typeof data.title !== 'string' ||
+            !data.title.trim() ||
+            data.title.length > 300 ||
+            typeof data.recordId !== 'string' ||
+            !UUID.test(data.recordId) ||
+            typeof data.projectId !== 'string' ||
+            !UUID.test(data.projectId) ||
+            !['event', 'action'].includes(data.recordKind)) {
+          reset();
+          status.textContent =
+            'Record identity unavailable. Correction drafting is disabled.';
+          return;
         }
 
-        selected = incoming.title.trim();
-        currentValue.textContent = selected;
+        selected = {
+          title: data.title.trim(),
+          id: data.recordId.toLowerCase(),
+          kind: data.recordKind,
+          projectId: data.projectId.toLowerCase()
+        };
+
+        value.textContent = selected.title;
+        metadata.textContent =
+          'Record type: ' + selected.kind +
+          ' · Record ID: ' + selected.id +
+          ' · Project ID: ' + selected.projectId;
+
         draft.value = '';
         draft.disabled = false;
+        update();
 
         status.textContent =
-          'Recorded item selected. Type a different value to preview a review choice.';
+          'Record identified. Enter a different value to preview a correction proposal.';
 
-        updateButtons();
         panel.open = true;
       }
     );
@@ -808,18 +870,17 @@
     host.addEventListener('continuity:memory-review-reset', reset);
 
     content.append(
-      notice, guide, compare, evidence, controls, status
+      notice, guide, comparison, provenance,
+      proposalControls, reviewSection, status
     );
 
-    panel.append(heading, content);
+    panel.append(summary, content);
     shell.append(panel);
     return true;
   }
 
   if (doc.readyState === 'loading') {
-    doc.addEventListener(
-      'DOMContentLoaded', mount, { once: true }
-    );
+    doc.addEventListener('DOMContentLoaded', mount, { once: true });
   } else {
     mount();
   }

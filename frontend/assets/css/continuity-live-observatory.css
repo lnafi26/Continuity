@@ -469,3 +469,31 @@
   border-top: 1px solid rgba(130, 151, 180, .25);
   line-height: 1.5;
 }
+
+
+/* B4.6d contextual review: identity and proposal/review separation. */
+.crrp-identity {
+  font-size: .78rem;
+  opacity: .8;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.crrp-review-section {
+  display: grid;
+  gap: .7rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(130, 151, 180, .25);
+}
+.crrp-review-section h4,
+.crrp-review-section p {
+  margin: 0;
+}
+.crrp-review-note {
+  font-size: .87rem;
+  opacity: .8;
+  line-height: 1.5;
+}
+.crrp-review-section .crrp-action:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
